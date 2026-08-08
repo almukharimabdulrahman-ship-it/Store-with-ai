@@ -41,7 +41,14 @@ export async function placeOrder(_: CheckoutState, formData: FormData): Promise<
   }
 
   const subtotal = cart.items.reduce((sum, item) => sum + Number(item.variant.salePrice ?? item.variant.price) * item.quantity, 0);
-  const { coupon, discount } = await resolveCoupon(input.coupon || undefined, subtotal).catch((error: unknown) => { throw error; });
+  let couponResult: Awaited<ReturnType<typeof resolveCoupon>>;
+  try {
+    couponResult = await resolveCoupon(input.coupon || undefined, subtotal);
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : "Invalid coupon" };
+  }
+  const { coupon, discount } = couponResult;
+
   const shipping = await getShippingConfig();
   if (shipping.allowedCountries.length && !shipping.allowedCountries.includes(input.country)) return { error: "Shipping is not available for this country" };
   if (shipping.allowedCities.length && !shipping.allowedCities.includes(input.city)) return { error: "Shipping is not available for this city" };
@@ -64,8 +71,17 @@ export async function placeOrder(_: CheckoutState, formData: FormData): Promise<
       }
 
       if (coupon) {
+        const now = new Date();
         const claimed = await tx.coupon.updateMany({
-          where: { id: coupon.id, active: true, ...(coupon.usageLimit !== null ? { usedCount: { lt: coupon.usageLimit } } : {}) },
+          where: {
+            id: coupon.id,
+            active: true,
+            AND: [
+              { OR: [{ startsAt: null }, { startsAt: { lte: now } }] },
+              { OR: [{ endsAt: null }, { endsAt: { gte: now } }] },
+              ...(coupon.usageLimit !== null ? [{ usedCount: { lt: coupon.usageLimit } }] : []),
+            ],
+          },
           data: { usedCount: { increment: 1 } },
         });
         if (claimed.count !== 1) throw new Error("Coupon is no longer available");
