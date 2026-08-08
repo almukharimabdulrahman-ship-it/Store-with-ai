@@ -12,7 +12,13 @@ export default async function CartPage() {
   const profile = await getStoreProfile();
   const cart = await prisma.cart.findFirst({
     where: session?.user?.id ? { userId: session.user.id } : guest ? { sessionToken: guest } : { id: "00000000-0000-0000-0000-000000000000" },
-    include: { items: { include: { variant: { include: { product: { include: { images: { orderBy: { sortOrder: "asc" }, take: 1 } } }, inventory: true } } }, orderBy: { createdAt: "desc" } } },
+    include: {
+      items: {
+        where: { variant: { active: true, product: { status: "ACTIVE" } } },
+        include: { variant: { include: { product: { include: { images: { orderBy: { sortOrder: "asc" }, take: 1 } } }, inventory: true } } },
+        orderBy: { createdAt: "desc" },
+      },
+    },
   }).catch(() => null);
   const items = cart?.items ?? [];
   const subtotal = items.reduce((sum, item) => sum + (Number(item.variant.salePrice ?? item.variant.price) * item.quantity), 0);
