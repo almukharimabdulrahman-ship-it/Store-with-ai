@@ -17,6 +17,6 @@ export default async function StorefrontHome() {
   </div>;
 }
 
-function ProductSection({ title, products, currency }: { title: string; products: any[]; currency: string }) {
+function ProductSection({ title, products, currency }: { title: string; products: readonly any[]; currency: string }) {
   return <section><div className="mb-5 flex items-center justify-between"><h2 className="text-2xl font-bold">{title}</h2><Link href="/products" className="text-sm font-medium">View all →</Link></div>{products.length ? <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-4">{products.map(p => <ProductCard key={p.id} product={p} currency={currency}/>)}</div> : <div className="rounded-2xl border border-dashed bg-white p-8 text-center text-neutral-500">No products available yet.</div>}</section>;
 }
