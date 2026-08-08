@@ -1,13 +1,14 @@
 import { prisma } from "@/lib/prisma";
 
 export async function getAdminOverview() {
-  const [orders, customers, products, lowStock] = await Promise.all([
+  const [orders, customers, products, inventory] = await Promise.all([
     prisma.order.findMany({ orderBy: { createdAt: "desc" }, take: 8 }),
     prisma.user.count({ where: { role: { code: "CUSTOMER" } } }),
     prisma.product.count({ where: { status: "ACTIVE" } }),
-    prisma.inventory.findMany({ where: { availableQuantity: { lte: prisma.inventory.fields.lowStockThreshold } }, include: { variant: { include: { product: true } } }, take: 8 }),
+    prisma.inventory.findMany({ include: { variant: { include: { product: true } } }, orderBy: { availableQuantity: "asc" }, take: 50 }),
   ]).catch(() => [[], 0, 0, []] as const);
 
+  const lowStock = inventory.filter((item) => item.availableQuantity <= item.lowStockThreshold).slice(0, 8);
   const paidRevenue = orders.reduce((sum, order) => order.paymentStatus === "PAID" ? sum + Number(order.total) : sum, 0);
   return { orders, customers, products, lowStock, paidRevenue };
 }
