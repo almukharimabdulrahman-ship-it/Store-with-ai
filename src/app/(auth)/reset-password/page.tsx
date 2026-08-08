@@ -1,0 +1,3 @@
+import { AuthForm } from "../auth-form";
+import { resetPasswordAction } from "../actions";
+export default async function ResetPage({ searchParams }: { searchParams: Promise<{ token?: string }> }) { const { token } = await searchParams; return <><h1 className="my-6 text-2xl font-bold">Reset password</h1>{token ? <AuthForm action={resetPasswordAction} fields={[{ name: "token", label: "Token", type: "hidden", value: token }, { name: "password", label: "New password", type: "password", autoComplete: "new-password" }]} submit="Update password" /> : <p className="text-red-700">Missing reset token.</p>}</> }
