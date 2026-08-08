@@ -1,0 +1,2 @@
+import { verifyEmailAction } from "../actions";
+export default async function VerifyPage({ searchParams }: { searchParams: Promise<{ token?: string; status?: string }> }) { const { token, status } = await searchParams; if (token) await verifyEmailAction(token); return <><h1 className="my-6 text-2xl font-bold">Verify email</h1><p>{status === "invalid" ? "This verification link is invalid or expired." : "Open the verification link sent to your email."}</p></> }
