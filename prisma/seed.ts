@@ -1,4 +1,5 @@
 import { PrismaClient, ProductStatus, DiscountType } from "@prisma/client";
+import { hash } from "bcryptjs";
 
 const prisma = new PrismaClient();
 
@@ -7,17 +8,14 @@ async function main() {
     throw new Error("Refusing to seed in production. Set ALLOW_PRODUCTION_SEED=true to override.");
   }
 
-  const adminRole = await prisma.role.upsert({
-    where: { code: "ADMIN" },
-    update: {},
-    create: { code: "ADMIN", name: "Administrator" },
-  });
-
-  const customerRole = await prisma.role.upsert({
-    where: { code: "CUSTOMER" },
-    update: {},
-    create: { code: "CUSTOMER", name: "Customer" },
-  });
+  const roles = await Promise.all([
+    ["SUPER_ADMIN", "Super Administrator"],
+    ["ADMIN", "Administrator"],
+    ["MANAGER", "Manager"],
+    ["CUSTOMER", "Customer"],
+  ].map(([code, name]) => prisma.role.upsert({ where: { code }, update: { name }, create: { code, name } })));
+  const adminRole = roles[1];
+  const customerRole = roles[3];
 
   const customer = await prisma.user.upsert({
     where: { email: "customer@example.com" },
@@ -26,6 +24,8 @@ async function main() {
       email: "customer@example.com",
       name: "Sample Customer",
       phone: "+218910000000",
+      passwordHash: await hash("Customer123!", 12),
+      emailVerified: new Date(),
       roleId: customerRole.id,
     },
   });
@@ -120,23 +120,11 @@ async function main() {
   await prisma.storeSetting.upsert({
     where: { key: "store.profile" },
     update: {},
-    create: {
-      key: "store.profile",
-      value: {
-        name: "Store with AI",
-        currency: "LYD",
-        country: "Libya",
-      },
-    },
+    create: { key: "store.profile", value: { name: "Store with AI", currency: "LYD", country: "Libya" } },
   });
 
   await prisma.notification.create({
-    data: {
-      userId: customer.id,
-      type: "WELCOME",
-      title: "Welcome",
-      message: "Welcome to Store with AI.",
-    },
+    data: { userId: customer.id, type: "WELCOME", title: "Welcome", message: "Welcome to Store with AI." },
   });
 
   console.log({ adminRole: adminRole.code, customer: customer.email, product: product.slug });
