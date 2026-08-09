@@ -8,12 +8,49 @@ datasource db {
   directUrl = env("DIRECT_URL")
 }
 
-enum ProductStatus { DRAFT ACTIVE ARCHIVED }
-enum OrderStatus { PENDING CONFIRMED PROCESSING SHIPPED DELIVERED CANCELLED REFUNDED }
-enum PaymentStatus { PENDING AUTHORIZED PAID FAILED PARTIALLY_REFUNDED REFUNDED }
-enum PaymentMethod { CASH_ON_DELIVERY CARD BANK_TRANSFER WALLET OTHER }
-enum DiscountType { PERCENTAGE FIXED }
-enum ReviewStatus { PENDING APPROVED REJECTED }
+enum ProductStatus {
+  DRAFT
+  ACTIVE
+  ARCHIVED
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  PROCESSING
+  SHIPPED
+  DELIVERED
+  CANCELLED
+  REFUNDED
+}
+
+enum PaymentStatus {
+  PENDING
+  AUTHORIZED
+  PAID
+  FAILED
+  PARTIALLY_REFUNDED
+  REFUNDED
+}
+
+enum PaymentMethod {
+  CASH_ON_DELIVERY
+  CARD
+  BANK_TRANSFER
+  WALLET
+  OTHER
+}
+
+enum DiscountType {
+  PERCENTAGE
+  FIXED
+}
+
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
 
 model Role {
   id String @id @default(uuid()) @db.Uuid
