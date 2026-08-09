@@ -1,0 +1,54 @@
+name: Test Supabase Database Connection
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test-database:
+    runs-on: ubuntu-latest
+
+    env:
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
+      DIRECT_URL: ${{ secrets.DIRECT_URL }}
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Validate Prisma schema
+        run: npx prisma validate
+
+      - name: Generate Prisma Client
+        run: npx prisma generate
+
+      - name: Test PostgreSQL connection
+        run: |
+          node <<'NODE'
+          const { PrismaClient } = require('@prisma/client');
+
+          const prisma = new PrismaClient();
+
+          async function main() {
+            await prisma.$queryRaw`SELECT 1`;
+            console.log('SUPABASE_DATABASE_CONNECTION_SUCCESS');
+          }
+
+          main()
+            .catch((error) => {
+              console.error('Database connection failed');
+              console.error(error?.code || error?.name || 'UNKNOWN_ERROR');
+              process.exit(1);
+            })
+            .finally(async () => {
+              await prisma.$disconnect();
+            });
+          NODE
