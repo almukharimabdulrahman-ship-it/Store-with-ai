@@ -32,23 +32,67 @@ jobs:
       - name: Test PostgreSQL connection
         run: |
           node <<'NODE'
+          const net = require('node:net');
           const { PrismaClient } = require('@prisma/client');
 
-          const prisma = new PrismaClient();
-
-          async function main() {
-            await prisma.$queryRaw`SELECT 1`;
-            console.log('SUPABASE_DATABASE_CONNECTION_SUCCESS');
+          function classify(message = '') {
+            const m = message.toLowerCase();
+            if (m.includes('authentication failed') || m.includes('password authentication failed') || m.includes('invalid password') || m.includes('credentials')) return 'AUTHENTICATION_ERROR';
+            if (m.includes('can\'t reach database server') || m.includes('timed out') || m.includes('timeout') || m.includes('econnrefused') || m.includes('enotfound') || m.includes('network')) return 'SERVER_UNREACHABLE';
+            if (m.includes('ssl') || m.includes('tls') || m.includes('certificate')) return 'TLS_SSL_ERROR';
+            if (m.includes('too many connections') || m.includes('connection limit')) return 'CONNECTION_LIMIT';
+            if (m.includes('database') && m.includes('does not exist')) return 'DATABASE_NOT_FOUND';
+            return 'UNKNOWN_CONNECTION_ERROR';
           }
 
-          main()
-            .catch((error) => {
-              console.error('Database connection failed');
-              console.error('Prisma error code:', error?.errorCode || error?.code || 'NONE');
-              console.error('Error type:', error?.name || 'UNKNOWN_ERROR');
+          async function tcpCheck(urlString) {
+            try {
+              const url = new URL(urlString);
+              const port = Number(url.port || 5432);
+              await new Promise((resolve, reject) => {
+                const socket = net.createConnection({ host: url.hostname, port });
+                const timer = setTimeout(() => socket.destroy(new Error('TIMEOUT')), 5000);
+                socket.once('connect', () => {
+                  clearTimeout(timer);
+                  socket.end();
+                  resolve();
+                });
+                socket.once('error', (err) => {
+                  clearTimeout(timer);
+                  reject(err);
+                });
+              });
+              console.log('TCP reachability: PASS');
+            } catch {
+              console.log('TCP reachability: FAIL');
+            }
+          }
+
+          async function main() {
+            if (!process.env.DATABASE_URL) {
+              console.log('DATABASE_URL presence: MISSING');
               process.exit(1);
-            })
-            .finally(async () => {
+            }
+
+            console.log('DATABASE_URL presence: PRESENT');
+            await tcpCheck(process.env.DATABASE_URL);
+
+            const prisma = new PrismaClient();
+            try {
+              await prisma.$queryRaw`SELECT 1`;
+              console.log('SUPABASE_DATABASE_CONNECTION_SUCCESS');
+            } catch (error) {
+              console.log('Database connection: FAIL');
+              console.log('Error type:', error?.name || 'UNKNOWN_ERROR');
+              console.log('Failure category:', classify(error?.message || ''));
+              process.exitCode = 1;
+            } finally {
               await prisma.$disconnect();
-            });
+            }
+          }
+
+          main().catch(() => {
+            console.log('Failure category: UNKNOWN_CONNECTION_ERROR');
+            process.exit(1);
+          });
           NODE
