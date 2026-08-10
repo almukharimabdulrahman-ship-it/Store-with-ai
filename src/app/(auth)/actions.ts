@@ -14,7 +14,7 @@ const expiresIn = (hours: number) => new Date(Date.now() + hours * 60 * 60 * 100
 export async function registerAction(_: ActionState, formData: FormData): Promise<ActionState> {
   const parsed = registerSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
-  const existing = await prisma.user.findUnique({ where: { email: parsed.data.email } });
+  const existing = await prisma.user.findFirst({ where: { email: { equals: parsed.data.email, mode: "insensitive" } } });
   if (existing) return { error: "An account already exists for this email" };
   const role = await prisma.role.findUnique({ where: { code: "CUSTOMER" } });
   if (!role) return { error: "Registration is temporarily unavailable" };
@@ -42,7 +42,7 @@ export async function forgotPasswordAction(_: ActionState, formData: FormData): 
   let resetTokenId: string | undefined;
 
   try {
-    const user = await prisma.user.findUnique({ where: { email: parsed.data } });
+    const user = await prisma.user.findFirst({ where: { email: { equals: parsed.data, mode: "insensitive" } } });
     if (!user) return response;
 
     await prisma.passwordResetToken.deleteMany({ where: { userId: user.id } });
