@@ -1,4 +1,14 @@
-const appUrl = () => process.env.AUTH_URL ?? process.env.NEXT_PUBLIC_APP_URL ?? "http://localhost:3000";
+const appUrl = () => {
+  const configuredUrl =
+    process.env.AUTH_URL ??
+    process.env.NEXTAUTH_URL ??
+    process.env.NEXT_PUBLIC_APP_URL;
+  const vercelUrl = process.env.VERCEL_PROJECT_PRODUCTION_URL ?? process.env.VERCEL_URL;
+
+  if (configuredUrl) return configuredUrl.replace(/\/$/, "");
+  if (vercelUrl) return `https://${vercelUrl.replace(/\/$/, "")}`;
+  return "http://localhost:3000";
+};
 
 async function sendEmail(to: string, subject: string, text: string) {
   const apiKey = process.env.RESEND_API_KEY;

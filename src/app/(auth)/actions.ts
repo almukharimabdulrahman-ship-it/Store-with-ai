@@ -39,12 +39,29 @@ export async function forgotPasswordAction(_: ActionState, formData: FormData): 
   const parsed = emailSchema.safeParse(formData.get("email"));
   const response = { success: "If an account exists, a reset link has been sent." };
   if (!parsed.success) return response;
-  const user = await prisma.user.findUnique({ where: { email: parsed.data } });
-  if (!user) return response;
-  await prisma.passwordResetToken.deleteMany({ where: { userId: user.id } });
-  const { token, tokenHash } = createToken();
-  await prisma.passwordResetToken.create({ data: { userId: user.id, tokenHash, expiresAt: expiresIn(1) } });
-  await sendPasswordResetEmail(user.email, token);
+  let resetTokenId: string | undefined;
+
+  try {
+    const user = await prisma.user.findUnique({ where: { email: parsed.data } });
+    if (!user) return response;
+
+    await prisma.passwordResetToken.deleteMany({ where: { userId: user.id } });
+    const { token, tokenHash } = createToken();
+    const resetToken = await prisma.passwordResetToken.create({
+      data: { userId: user.id, tokenHash, expiresAt: expiresIn(1) },
+      select: { id: true },
+    });
+    resetTokenId = resetToken.id;
+    await sendPasswordResetEmail(user.email, token);
+  } catch {
+    // Never disclose account existence or turn an email/database outage into a
+    // server-action crash. A token that was not delivered must not remain valid.
+    if (resetTokenId) {
+      await prisma.passwordResetToken.delete({ where: { id: resetTokenId } }).catch(() => undefined);
+    }
+    console.error("[auth] Unable to complete forgot-password request");
+  }
+
   return response;
 }
 
