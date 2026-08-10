@@ -15,7 +15,12 @@ const providers: Provider[] = [
     async authorize(raw) {
       const parsed = loginSchema.safeParse(raw);
       if (!parsed.success) return null;
-      const user = await prisma.user.findUnique({ where: { email: parsed.data.email }, include: { role: true } });
+      // Login input is normalized to lowercase, while externally provisioned
+      // accounts may retain mixed-case email text in PostgreSQL.
+      const user = await prisma.user.findFirst({
+        where: { email: { equals: parsed.data.email, mode: "insensitive" } },
+        include: { role: true },
+      });
       if (!user?.passwordHash || !user.emailVerified || !(await compare(parsed.data.password, user.passwordHash))) return null;
       return { id: user.id, email: user.email, name: user.name, role: user.role.code };
     },
