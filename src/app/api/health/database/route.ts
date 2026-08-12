@@ -2,6 +2,29 @@ import { prisma } from "@/lib/prisma";
 
 export const dynamic = "force-dynamic";
 
+const safeDatabaseConfiguration = () => {
+  const value = process.env.DATABASE_URL;
+  if (!value) return { present: false };
+
+  try {
+    const url = new URL(value);
+    return {
+      present: true,
+      parseable: true,
+      protocolOk: ["postgres:", "postgresql:"].includes(url.protocol),
+      usernameOk: url.username === "postgres.lnzpdfotfutkqsiknrbq",
+      poolerHost: url.hostname.endsWith(".pooler.supabase.com"),
+      port: url.port || "default",
+      databaseOk: url.pathname === "/postgres",
+      pgbouncer: url.searchParams.get("pgbouncer") === "true",
+      connectionLimit: url.searchParams.get("connection_limit") ?? "unset",
+      sslMode: url.searchParams.get("sslmode") ?? "unset",
+    };
+  } catch {
+    return { present: true, parseable: false };
+  }
+};
+
 const diagnosticCode = (error: unknown) => {
   const record = error && typeof error === "object"
     ? error as { code?: unknown; errorCode?: unknown }
@@ -12,7 +35,10 @@ const diagnosticCode = (error: unknown) => {
 
   if (!prismaCode) {
     if (message.includes("Environment variable not found")) return "DB_ENV_MISSING";
-    if (message.includes("Authentication failed")) return "DB_AUTH_REJECTED";
+    if (message.includes("Authentication failed") || message.includes("password authentication failed")) {
+      return "DB_AUTH_REJECTED";
+    }
+    if (message.includes("Tenant or user not found")) return "DB_POOLER_TENANT_INVALID";
     if (message.includes("Can't reach database server")) return "DB_HOST_UNREACHABLE";
     if (message.includes("Timed out fetching a new connection")) return "DB_POOL_TIMEOUT";
     if (message.includes("prepared statement") && message.includes("already exists")) {
@@ -49,7 +75,12 @@ export async function GET() {
     await prisma.$queryRaw`SELECT 1`;
 
     return Response.json(
-      { ok: true, diagnostic: "DB_CONNECTED", durationMs: Date.now() - startedAt },
+      {
+        ok: true,
+        diagnostic: "DB_CONNECTED",
+        durationMs: Date.now() - startedAt,
+        configuration: safeDatabaseConfiguration(),
+      },
       { headers: { "Cache-Control": "no-store" } },
     );
   } catch (error) {
@@ -65,7 +96,12 @@ export async function GET() {
     );
 
     return Response.json(
-      { ok: false, diagnostic, durationMs: Date.now() - startedAt },
+      {
+        ok: false,
+        diagnostic,
+        durationMs: Date.now() - startedAt,
+        configuration: safeDatabaseConfiguration(),
+      },
       { status: 503, headers: { "Cache-Control": "no-store" } },
     );
   }
