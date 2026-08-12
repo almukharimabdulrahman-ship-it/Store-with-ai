@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/prisma";
+import { PrismaClient } from "@prisma/client";
 
 export const dynamic = "force-dynamic";
 
@@ -60,6 +61,41 @@ const safeManagedDatabaseConfiguration = () => ({
   postgresUrl: safeManagedConnection("POSTGRES_URL"),
   postgresNonPoolingUrl: safeManagedConnection("POSTGRES_URL_NON_POOLING"),
 });
+
+const testAlternatePooler = async () => {
+  const value = process.env.DATABASE_URL;
+  if (!value) return { tested: false, reason: "DATABASE_URL_MISSING" };
+
+  let alternateUrl: URL;
+  try {
+    alternateUrl = new URL(value);
+    alternateUrl.hostname = "aws-1-eu-west-1.pooler.supabase.com";
+  } catch {
+    return { tested: false, reason: "DATABASE_URL_INVALID" };
+  }
+
+  const alternatePrisma = new PrismaClient({
+    datasources: { db: { url: alternateUrl.toString() } },
+  });
+
+  try {
+    await alternatePrisma.$queryRaw`SELECT 1`;
+    return {
+      tested: true,
+      connected: true,
+      hostname: alternateUrl.hostname,
+    };
+  } catch (error) {
+    return {
+      tested: true,
+      connected: false,
+      hostname: alternateUrl.hostname,
+      safeError: safeErrorSummary(error),
+    };
+  } finally {
+    await alternatePrisma.$disconnect().catch(() => undefined);
+  }
+};
 
 const safeErrorSummary = (error: unknown) => {
   let message = error instanceof Error ? error.message : String(error);
@@ -164,6 +200,7 @@ export async function GET() {
         safeError: safeErrorSummary(error),
         configuration: safeDatabaseConfiguration(),
         managedConfiguration: safeManagedDatabaseConfiguration(),
+        alternatePooler: await testAlternatePooler(),
       },
       { status: 503, headers: { "Cache-Control": "no-store" } },
     );
