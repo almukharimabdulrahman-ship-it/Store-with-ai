@@ -8,11 +8,20 @@ const safeDatabaseConfiguration = () => {
 
   try {
     const url = new URL(value);
+    const decodedPassword = decodeURIComponent(url.password);
     return {
       present: true,
       parseable: true,
+      trimmed: value === value.trim(),
+      wrappedInQuotes:
+        (value.startsWith('"') && value.endsWith('"')) ||
+        (value.startsWith("'") && value.endsWith("'")),
       protocolOk: ["postgres:", "postgresql:"].includes(url.protocol),
       usernameOk: url.username === "postgres.lnzpdfotfutkqsiknrbq",
+      passwordPresent: decodedPassword.length > 0,
+      passwordLength: decodedPassword.length,
+      passwordAlphanumeric: /^[A-Za-z0-9]+$/.test(decodedPassword),
+      passwordIsPlaceholder: decodedPassword === "YOUR_PASSWORD",
       poolerHost: url.hostname.endsWith(".pooler.supabase.com"),
       regionHostOk: url.hostname === "aws-0-eu-west-1.pooler.supabase.com",
       port: url.port || "default",
