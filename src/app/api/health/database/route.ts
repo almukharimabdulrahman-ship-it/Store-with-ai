@@ -3,12 +3,28 @@ import { prisma } from "@/lib/prisma";
 export const dynamic = "force-dynamic";
 
 const diagnosticCode = (error: unknown) => {
-  const prismaCode =
-    error && typeof error === "object" && "errorCode" in error
-      ? String(error.errorCode)
-      : error && typeof error === "object" && "code" in error
-        ? String(error.code)
-        : "UNKNOWN";
+  const record = error && typeof error === "object"
+    ? error as { code?: unknown; errorCode?: unknown }
+    : undefined;
+  const prismaCode = [record?.errorCode, record?.code]
+    .find((value): value is string => typeof value === "string" && value.length > 0);
+  const message = error instanceof Error ? error.message : "";
+
+  if (!prismaCode) {
+    if (message.includes("Environment variable not found")) return "DB_ENV_MISSING";
+    if (message.includes("Authentication failed")) return "DB_AUTH_REJECTED";
+    if (message.includes("Can't reach database server")) return "DB_HOST_UNREACHABLE";
+    if (message.includes("Timed out fetching a new connection")) return "DB_POOL_TIMEOUT";
+    if (message.includes("prepared statement") && message.includes("already exists")) {
+      return "DB_POOLER_MODE_INVALID";
+    }
+    if (message.includes("invalid connection string") || message.includes("invalid port")) {
+      return "DB_URL_INVALID";
+    }
+    return error instanceof Error
+      ? `DB_${error.name.replace(/[^a-zA-Z0-9]/g, "_").toUpperCase()}`
+      : "DB_UNKNOWN";
+  }
 
   switch (prismaCode) {
     case "P1000":
