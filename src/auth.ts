@@ -29,7 +29,17 @@ const providers: Provider[] = [
 if (process.env.AUTH_GOOGLE_ID && process.env.AUTH_GOOGLE_SECRET) providers.push(Google);
 if (process.env.AUTH_GITHUB_ID && process.env.AUTH_GITHUB_SECRET) providers.push(GitHub);
 
+// Keep the full Auth.js instance on the same secret as middleware. A dedicated
+// AUTH_SECRET remains the preferred value; the server-only database credential
+// is only a stable, app-scoped fallback for existing Vercel deployments.
+const authSecret =
+  process.env.AUTH_SECRET ??
+  process.env.NEXTAUTH_SECRET ??
+  (process.env.DATABASE_URL ? `store-with-ai/auth/v1:${process.env.DATABASE_URL}` : undefined) ??
+  (process.env.DIRECT_URL ? `store-with-ai/auth/v1:${process.env.DIRECT_URL}` : undefined);
+
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  secret: authSecret,
   adapter: {
     ...baseAdapter,
     async createUser(data) {
