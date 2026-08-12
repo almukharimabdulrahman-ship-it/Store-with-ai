@@ -1,51 +1,89 @@
 # Store-with-ai — Persistent Project Knowledge Base
 
-> Purpose: persistent handoff context for future ChatGPT/Codex sessions after long chats are deleted. Read this file before making changes.
+> Purpose: persistent handoff context for future ChatGPT/Codex sessions. Read this file before proposing or making project changes.
 >
-> Security rule: never store passwords, API keys, database URIs, Resend keys, Auth secrets, or other credentials in this file or in Git. Store only environment-variable names and setup rules.
+> Last verified: **2026-08-12** (Africa/Tripoli).
+>
+> Security rule: never store passwords, reset links/tokens, API keys, Auth secrets, full database URIs, or other credentials in this file, Git, screenshots, logs, or chat. Store environment-variable names and non-secret configuration facts only.
 
 ## 1. Owner intent and working style
 
-- Goal: get a working production e-commerce store first, then improve design/features.
-- User is not a programmer and expects the assistant/Codex to choose implementation details and give exact UI steps when manual actions are required.
-- Avoid creating duplicate Vercel/Supabase projects. Keep one canonical GitHub repo, one canonical Vercel project, and one canonical Supabase project.
-- Prefer fixing the current deployment over starting another project unless the current project is irrecoverable.
+- Primary goal: operate a working production e-commerce store first, then improve the admin experience, storefront design, products, and commercial features.
+- The owner is not a programmer. The assistant/Codex should choose sensible implementation details, perform safe technical work directly when authorized, and provide exact UI steps only when a manual account action is unavoidable.
+- Keep one canonical GitHub repository, one canonical Vercel project, and one canonical Supabase project.
+- Repair the current production system instead of creating duplicate projects.
+- Diagnose from evidence: check code, deployment state, runtime responses/logs, and database state before changing infrastructure.
+- Make one controlled change at a time, redeploy, then verify the complete flow.
 
-## 2. Canonical GitHub source
+## 2. Canonical resources
 
-- Repository: `almukharimabdulrahman-ship-it/Store-with-ai`
-- Main branch: `main`
-- Current deployment source observed in Vercel logs: commit `7befd2d` (`chore(db): prepare clean database during deploy`).
-- GitHub ↔ Vercel integration is installed and has repository access.
+- GitHub repository: `almukharimabdulrahman-ship-it/Store-with-ai`
+- Production branch: `main`
+- Vercel project: `store-with-ai`
+- Stable production URL: `https://store-with-ai.vercel.app`
+- Supabase Project Ref: `lnzpdfotfutkqsiknrbq`
+- Production application baseline verified after Auth.js fixes: commit `d4b9aae`
 
-## 3. Current stack
+Generated Vercel deployment URLs are immutable deployment aliases. They do **not** indicate that a new Vercel project was created. Always use the stable production URL for user-facing verification.
 
-Current repository is a Next.js application, not the older Create React App prototype.
+## 3. Current verified status
 
-Key packages from `package.json`:
+As of 2026-08-12, there is **no active database, deployment, or login blocker**.
+
+| Area | Status | Evidence |
+|---|---|---|
+| GitHub → Vercel deployment | Working | Vercel status for application baseline commit `d4b9aae` was `success` |
+| Production storefront | Working | `/` returned HTTP `200` |
+| Login page | Working | `/login` returned HTTP `200` |
+| Registration page | Working | `/register` returned HTTP `200` |
+| Auth.js providers | Working | `/api/auth/providers` returned HTTP `200` and the credentials provider |
+| Auth.js CSRF | Working | `/api/auth/csrf` returned HTTP `200` and a token |
+| Auth.js session endpoint | Working | `/api/auth/session` returned HTTP `200` |
+| Protected routes | Working | Logged-out requests to `/dashboard` and `/admin` return `307` to `/login` |
+| Database connectivity | Working | Live Prisma/database health was verified before the temporary diagnostic route was removed |
+| Owner account | Working | One verified user with a password and `SUPER_ADMIN` role exists; owner manually confirmed successful Dashboard login |
+| Password reset cleanup | Working | No active password-reset token remained after the successful reset |
+| Transactional email | Not configured/verified | Registration can survive email failure, but Resend delivery still needs proper production setup and testing |
+| Dedicated Auth.js secret | Recommended improvement | Runtime currently works with a secure server-only fallback; a dedicated `AUTH_SECRET` should still be added in Vercel |
+
+### Database summary at last verification
+
+- Users: `1`
+- Roles: `4`
+- Store settings: `1`
+- Ready verified `SUPER_ADMIN` accounts: `1`
+- Active password-reset tokens: `0`
+
+Do not store the owner's login email or password in this knowledge base.
+
+## 4. Current stack and build behavior
+
+This is a Next.js App Router application.
 
 - Next.js `15.5.21`
 - React `19.1.0`
-- TypeScript `^5`
+- TypeScript 5.x
 - Prisma / `@prisma/client` 6.x
-- NextAuth/Auth.js v5 beta
+- Auth.js / NextAuth v5 beta
 - `@auth/prisma-adapter`
 - `bcryptjs`
 - `zod`
 - Tailwind CSS 4
 - `tsx`
 
-Current production build command:
+Current production build script from `package.json`:
 
 ```bash
-prisma generate && prisma db push --skip-generate && tsx prisma/bootstrap.ts && next build
+prisma generate && next build
 ```
 
-Important: the Prisma 7 upgrade notice is only a warning. Do not upgrade Prisma while recovering production unless a separate task explicitly requires it.
+The previous knowledge-base claim that every deployment runs `prisma db push` and `prisma/bootstrap.ts` is outdated. Do not reintroduce destructive or implicit schema synchronization into the production build. Use reviewed migrations for future schema changes.
 
-## 4. Database architecture
+Prisma 7 notices are warnings, not the cause of the recovered production failures. Do not upgrade Prisma during unrelated recovery work.
 
-Prisma datasource:
+## 5. Database architecture
+
+Prisma uses:
 
 ```prisma
 datasource db {
@@ -55,7 +93,7 @@ datasource db {
 }
 ```
 
-Main domain models include:
+Main models include:
 
 - Role
 - User
@@ -67,10 +105,7 @@ Main domain models include:
 - Address
 - Category
 - Brand
-- Product
-- ProductCategory
-- ProductImage
-- ProductVariant
+- Product / ProductCategory / ProductImage / ProductVariant
 - Inventory
 - Cart / CartItem
 - Wishlist / WishlistItem
@@ -81,180 +116,285 @@ Main domain models include:
 - Notification
 - StoreSetting
 
-The project intentionally moved to a CLEAN Supabase database after the previous database became confused/broken and was deleted.
+The active Supabase database contains the required schema, roles, store profile, and owner account.
 
-### Bootstrap behavior
+## 6. Canonical Supabase connection facts
 
-`prisma/bootstrap.ts` runs during deployment and upserts these roles:
-
-- `SUPER_ADMIN`
-- `ADMIN`
-- `MANAGER`
-- `CUSTOMER`
-
-It also creates `StoreSetting` key `store.profile` with:
-
-- name: `Store with AI`
-- currency: `LYD`
-- country: `Libya`
-
-Bootstrap does NOT currently create an administrator user. After the database connection/build succeeds, an admin/super-admin account still needs to be created or promoted before the dashboard can be used.
-
-## 5. Canonical Supabase project
-
-Current clean Supabase Project Ref observed in logs:
+Active project ref:
 
 `lnzpdfotfutkqsiknrbq`
 
-A build log confirmed the attempted direct host:
-
-`db.lnzpdfotfutkqsiknrbq.supabase.co:5432`
-
-Do not reuse connection strings containing old/deleted project refs such as:
+Never reuse deleted/old project refs, especially:
 
 `juhbbeahctcgygqnvcwg`
 
-That old ref previously caused:
+### Correct pooler routing discovered during recovery
 
-`FATAL: (ENOTFOUND) tenant/user postgres.juhbbeahctcgygqnvcwg not found`
+- Wrong host for this tenant: `aws-0-eu-west-1.pooler.supabase.com`
+- Correct reachable host: `aws-1-eu-west-1.pooler.supabase.com`
+- Runtime/serverless `DATABASE_URL`: transaction pooler pattern, port `6543`, SSL required, with PgBouncer-compatible options.
+- `DIRECT_URL`: session pooler pattern, port `5432`, SSL required.
+- A direct database hostname `db.<project-ref>.supabase.co:5432` produced Prisma `P1001` from Vercel and should not be restored without first proving IPv6/network reachability.
 
-### Vercel database environment variables
+Never put the full URI or database password in Git. If the password changes, both `DATABASE_URL` and `DIRECT_URL` must be updated atomically for the correct Vercel environment, followed by a fresh production deployment and runtime verification.
 
-Required names:
+### Runtime resilience in `src/lib/prisma.ts`
 
-- `DATABASE_URL`
-- `DIRECT_URL`
+- The app normalizes the exact stale `aws-0` host for this project to the proven `aws-1` host before constructing PrismaClient.
+- Prisma retries transient `P1001`, `P1002`, and `P2024` failures up to two times with a short backoff.
+- This is resilience, not permission to leave Vercel variables incorrect. The source environment values should still use the correct pooler host.
 
-Recovery configuration used/selected for Vercel + Supabase networking:
+## 7. Authentication status and behavior
 
-- Use a Supabase **pooler URI** that Vercel can reach over IPv4.
-- A true Supabase Direct Connection (`db.<ref>.supabase.co:5432`) produced Prisma `P1001` from the Vercel build environment.
-- Previous successful recovery approach: use the **Session pooler URI** for `DIRECT_URL`; during recovery it is acceptable to use the same Session pooler URI for both `DATABASE_URL` and `DIRECT_URL` to get `prisma db push` working.
-- Transaction pooler is suitable for runtime/serverless use, but do not switch connection methods casually while diagnosing. Verify the host/project ref every time.
+Authentication uses Auth.js credentials with bcrypt password hashes, JWT sessions, PrismaAdapter, case-insensitive email lookup, and role data stored in the session token.
 
-Never commit the actual URI/password. Database password is the Supabase project database password and is distinct from Supabase account login, GitHub login, store user passwords, etc.
-
-## 6. Current deployment blocker (latest known state)
-
-Latest reported Vercel build reached Prisma successfully, then failed here:
-
-```text
-Datasource "db": PostgreSQL database "postgres", schema "public" at "db.lnzpdfotfutkqsiknrbq.supabase.co:5432"
-Error: P1001: Can't reach database server at `db.lnzpdfotfutkqsiknrbq.supabase.co:5432`
-```
-
-Interpretation:
-
-- Project ref is now correct (`lnzpdfotfutkqsiknrbq`).
-- The remaining issue is reachability/network method, not a missing Prisma env var and not the previous deleted tenant.
-- Next action: replace Vercel `DIRECT_URL` with the **Session pooler URI** from this SAME Supabase project, and if needed set both `DATABASE_URL` and `DIRECT_URL` temporarily to that same Session pooler URI; then Redeploy with build cache disabled.
-
-Expected next milestones after this P1001 is fixed:
-
-1. `prisma db push` succeeds and creates/synchronizes tables.
-2. `tsx prisma/bootstrap.ts` prints `[db bootstrap] roles and store profile are ready`.
-3. `next build` completes.
-4. Vercel deployment becomes `Ready`.
-5. Test production storefront.
-6. Create/promote admin user and test `/dashboard`.
-7. Test auth: register, verify email, login, forgot-password/reset-password.
-8. Only after stability, seed products/content and continue UI refinement.
-
-## 7. Vercel behavior that previously caused confusion
-
-- Every deployment gets a unique generated deployment hostname such as `store-with-<random>...vercel.app` / `...projects.vercel.app`.
-- This does NOT mean a new Vercel project is created every time.
-- The stable production domain/project alias should remain the canonical `store-with-ai.vercel.app` when assigned to the latest successful production deployment.
-- Editing environment variables then pressing Redeploy creates another deployment of the same project.
-- Redeploy recovery preference: Production environment, do NOT use existing Build Cache when debugging DB/env changes.
-
-## 8. Authentication work already done
-
-Previous work investigated/fixed auth paths including:
+Working routes include:
 
 - `/login`
 - `/register`
 - `/forgot-password`
-- reset-password flow
-- email verification
+- `/reset-password`
+- `/verify-email`
+- `/dashboard`
+- `/admin`
 
-Important changes/history:
+### Owner account
 
-- Login/password-reset email lookup was changed to handle stored email casing differences (case-insensitive lookup).
-- Forgot-password action was made fail-safe so email/database outages do not crash the server action or disclose account existence.
-- Password-reset tokens that cannot be delivered should not remain valid.
-- Resend delivery diagnostics were added in later work.
+- Account exists in the application `User` table.
+- Email verification is complete.
+- Password hash is a valid bcrypt `$2b$12$` hash.
+- Role is `SUPER_ADMIN`.
+- Password was reset through a one-time, one-hour token.
+- The reset token was invalidated after use.
+- Successful login and Dashboard rendering were manually confirmed by the owner on 2026-08-12.
 
-Observed old error before database reset:
+### Auth.js secret behavior
+
+Missing `AUTH_SECRET` caused every Auth.js endpoint to return HTTP `500` with:
 
 ```text
-Invalid `prisma.user.findFirst()` invocation:
-Authentication failed against database server; database credentials for `postgres` are not valid.
+There was a problem with the server configuration.
 ```
 
-That belonged to the old/broken database configuration and should not be used to diagnose the clean database unless it reappears with the NEW project ref.
+`src/auth.config.ts` and `src/auth.ts` now use the same priority:
 
-## 9. Email / Resend
+1. `AUTH_SECRET`
+2. legacy `NEXTAUTH_SECRET`
+3. app-scoped server-only fallback derived from `DATABASE_URL`
+4. app-scoped server-only fallback derived from `DIRECT_URL`
 
-Resend is used for verification/password-reset transactional email.
+This restored production immediately without committing a secret. A dedicated random `AUTH_SECRET` in Vercel Production remains the preferred long-term configuration. Adding it automatically takes precedence. Changing the fallback source invalidates existing JWT sessions, so database-password rotation can require users to sign in again until a dedicated Auth secret is configured.
 
-Relevant environment variables include (names only):
+### Registration and email failure behavior
 
-- Resend API key variable used by repository code
+Registration used to fail operationally when verification email delivery failed. It now keeps the newly created account and reports that an administrator must verify it. This prevents loss of a correctly created account during a Resend outage.
+
+Forgot-password intentionally returns a generic response to prevent account enumeration. If email delivery fails, the undelivered token is removed.
+
+## 8. Incident history and lessons learned
+
+This section is a debugging history, not a list of current blockers.
+
+### Incident A — deleted/old Supabase tenant
+
+**Symptom**
+
+```text
+FATAL: (ENOTFOUND) tenant/user postgres.juhbbeahctcgygqnvcwg not found
+```
+
+**Root cause:** connection strings still referenced a deleted/old project.
+
+**Resolution:** establish one canonical project ref: `lnzpdfotfutkqsiknrbq`.
+
+**Lesson:** verify the project ref inside every database URL before changing passwords or code.
+
+### Incident B — direct database host unreachable from Vercel
+
+**Symptom**
+
+```text
+P1001: Can't reach database server at db.lnzpdfotfutkqsiknrbq.supabase.co:5432
+```
+
+**Root cause:** the direct hostname was not reachable from the Vercel build/runtime path being used.
+
+**Resolution:** use the same project's IPv4-compatible Supabase pooler connection.
+
+**Lesson:** `P1001` is a reachability problem; it is not proof that the password is wrong.
+
+### Incident C — wrong pooler shard
+
+**Symptom**
+
+```text
+FATAL: (ENOTFOUND) tenant/user postgres.lnzpdfotfutkqsiknrbq not found
+```
+
+despite using the correct project ref.
+
+**Root cause:** the URL used `aws-0-eu-west-1.pooler.supabase.com`, while this tenant was reachable on `aws-1-eu-west-1.pooler.supabase.com`.
+
+**Resolution:** test both routing facts safely, select `aws-1`, and add exact host normalization in `src/lib/prisma.ts`.
+
+**Lesson:** a correct username/project ref can still fail on the wrong pooler shard. Do not rotate the password until the hostname is proven.
+
+### Incident D — Vercel showed `Ready`, but runtime failed
+
+**Symptom:** build/deployment was green while the storefront returned a server-side exception.
+
+**Root cause:** Vercel `Ready` confirms the artifact deployed, not that database and Auth.js runtime flows work.
+
+**Resolution:** add a temporary database health route, verify live connectivity, then remove the route; test public and Auth.js endpoints separately.
+
+**Lesson:** after every infrastructure change, verify browser/page → API/server action → database → response. Never stop at the green deployment badge.
+
+### Incident E — repeated database-password rotation
+
+**Symptom:** a week of changing passwords without restoring login.
+
+**Root cause:** multiple independent problems were treated as one password problem: deleted project ref, wrong host, wrong pooler shard, missing Auth.js secret, email delivery, and store-account password mismatch.
+
+**Resolution:** freeze password changes, test exact connection parameters, and separate each credential domain.
+
+**Lesson:** distinguish these credentials:
+
+- Supabase account login
+- Supabase project database password
+- Vercel account login
+- GitHub account login
+- Store customer/administrator password
+- Resend API key
+- Auth.js session secret
+
+They are not interchangeable.
+
+### Incident F — registration email unavailable
+
+**Symptom:** registration reported temporary unavailability or created an account that could not self-verify.
+
+**Root cause:** transactional email was not configured/reliably delivered.
+
+**Resolution:** preserve the account on delivery failure and manually verify the owner account in the database.
+
+**Lesson:** account creation and email delivery are separate transactions. An email outage must not destroy valid user data.
+
+### Incident G — Auth.js configuration failure
+
+**Symptom:** all Auth.js endpoints returned HTTP `500` and the generic server-configuration JSON message.
+
+**Root cause:** no usable Auth.js secret in Production.
+
+**Resolution:** use a consistent server-only secret resolution in both middleware config and full Auth.js handlers. Verified `/api/auth/providers`, `/api/auth/csrf`, and `/api/auth/session` returned `200` after deployment.
+
+**Lesson:** when all Auth endpoints fail before credential checking, diagnose Auth.js configuration before touching the user or database password.
+
+### Incident H — invalid credentials after Auth.js recovery
+
+**Symptom:** login page showed `Invalid credentials or unverified email`.
+
+**Root cause:** the generic UI message covered three possible states, but database inspection proved the account existed, was verified, had `SUPER_ADMIN`, and had a valid bcrypt hash. The entered store password did not match that hash.
+
+**Resolution:** create a one-time reset token, let the owner choose a new password inside the site, verify token deletion, and confirm Dashboard login.
+
+**Lesson:** never try to read or guess a hashed password. Prove account state first, then use a time-limited reset flow.
+
+## 9. Traceable recovery commits
+
+Important application commits from the successful recovery:
+
+- `5825fe83` — runtime Supabase pooler-host correction
+- `1d1d67b` — remove temporary database health diagnostic after verification
+- `75b5365` — keep registered account when verification email delivery fails
+- `8cd64bc3` — provide stable production secret to middleware Auth.js config
+- `d4b9aae3` — use the same stable secret in full Auth.js handlers
+
+Fetch the current `main` HEAD before future changes; these commits are historical anchors, not a substitute for reading current files.
+
+## 10. Environment variables
+
+Required or relevant names only:
+
+- `DATABASE_URL`
+- `DIRECT_URL`
+- `AUTH_SECRET` — recommended dedicated production secret; not yet verified as provisioned
+- `NEXTAUTH_SECRET` — legacy fallback name
+- `AUTH_URL`
+- `NEXTAUTH_URL`
+- `NEXT_PUBLIC_APP_URL`
+- `RESEND_API_KEY`
 - `AUTH_EMAIL_FROM`
-
-Earlier temporary sender value used Resend onboarding sender format, e.g. `Store with AI <onboarding@resend.dev>`.
+- Optional OAuth pairs: `AUTH_GOOGLE_ID` / `AUTH_GOOGLE_SECRET`, `AUTH_GITHUB_ID` / `AUTH_GITHUB_SECRET`
 
 Rules:
 
-- API keys are secrets; store only in Vercel environment variables.
-- If forgot-password UI returns its generic success message but Resend shows no sent email, inspect Vercel runtime logs first. The generic message is intentionally returned even when delivery fails.
+- Secrets belong in Vercel environment variables, never committed `.env` files.
+- Scope values intentionally by environment. Production and Preview are separate scopes; do not assume changing one changes the other.
+- Editing an environment variable does not alter an existing immutable deployment; redeploy after changes.
+- Never paste complete connection strings or secrets into this knowledge base.
 
-## 10. Dashboard
+## 11. Current remaining work, in priority order
 
-- Dashboard code is part of the GitHub application and was not lost when the old database was deleted.
-- A clean DB starts with no users.
-- `bootstrap.ts` only creates roles/settings, not a dashboard admin.
-- After production database deployment succeeds, create or promote the owner account to `SUPER_ADMIN`/`ADMIN`, then test `/dashboard`.
+### Priority 0 — production hardening
 
-## 11. Product/UI direction and older prototype references
+1. Add a dedicated random `AUTH_SECRET` to Vercel Production and redeploy.
+2. Configure and verify Resend: API key, authorized sender/domain, and `AUTH_EMAIL_FROM`.
+3. Test registration verification and forgot-password delivery end to end with a non-owner test account.
+4. Add useful runtime observability/error monitoring so future failures do not require temporary diagnostic routes.
 
-Primary visual reference supplied by the user:
+### Priority 1 — admin and commerce operations
 
-- Mytheresa storefront/sale experience (reference URL was supplied separately).
+1. Test every `/admin` section while authenticated as `SUPER_ADMIN`.
+2. Verify create/edit/archive product flows and inventory updates against Supabase.
+3. Verify categories, brands, customers, orders, coupons, reviews, and settings pages.
+4. Add representative products/content only after CRUD flows are confirmed.
+5. Verify storefront cart → checkout → order creation → admin order management.
 
-Older prototype structure (historical reference only; current repo is Next.js):
+### Priority 2 — product quality
 
-```text
-src/
-  components/
-    Header.tsx
-    Hero.tsx
-    CollectionHighlight.tsx
-    CategoriesSection.tsx
-    FeaturedCollection.tsx
-    ProductCard.tsx
-    BrandStory.tsx
-    Footer.tsx
-  layouts/MainLayout.tsx
-  pages/Home.tsx
-  data/constants.ts
-  data/categories.ts
-  data/products.ts
-  types/product.ts
-```
+1. Improve responsive/mobile layout and Arabic/RTL presentation where required.
+2. Replace performance-sensitive `<img>` elements with appropriate Next.js Image usage.
+3. Add automated smoke checks for production routes and authentication endpoints.
+4. Review authorization separately from authentication; a valid session must not automatically grant admin access.
 
-Older prototype libraries noted:
+## 12. Things future assistants must not do
 
-- `lucide-react` for general icons
-- `@icons-pack/react-simple-icons` for social brand icons such as Instagram/Facebook
-- Tailwind CSS
+1. Do not create a new Vercel or Supabase project because a deployment URL changes.
+2. Do not use the deleted project ref `juhbbeahctcgygqnvcwg`.
+3. Do not restore the known-wrong `aws-0` pooler host for the active tenant.
+4. Do not change the database password as the first response to `P1001`, `ENOTFOUND`, email failure, Auth.js configuration failure, or invalid store credentials.
+5. Do not confuse the store-account password with the database password.
+6. Do not hardcode an Auth secret, password, or full database URI in source.
+7. Do not assume `Ready` means the live user flow works.
+8. Do not re-add a public diagnostic endpoint and leave it deployed.
+9. Do not delete a valid registered account merely because email delivery failed.
+10. Do not run destructive SQL, reset the database, or recreate schema without a verified target and a recovery plan.
 
-These are design/history references only. Before adding a package, check the CURRENT `package.json`; do not assume the older CodeSandbox package list matches the Next.js repo.
+## 13. Verification checklist for future changes
 
-## 12. Store contact details to preserve in site content
+Before editing:
 
-These were supplied for the store prototype/content:
+1. Read this file completely.
+2. Fetch current `main` and inspect `package.json`, `prisma/schema.prisma`, `src/lib/prisma.ts`, `src/auth.ts`, and the files relevant to the requested feature.
+3. Confirm the canonical Vercel project and Supabase project ref.
+4. Check for user-owned/unrelated worktree changes before editing.
+
+After editing:
+
+1. Run targeted TypeScript/lint/build checks.
+2. Confirm the Git commit and Vercel deployment status.
+3. Test the stable production URL, not only the generated deployment URL.
+4. Verify the complete data flow: UI → action/API → database/external service → response.
+5. For authentication work, test providers, CSRF, session, login, route protection, role authorization, and logout.
+6. For database work, confirm the active project ref and query the resulting state.
+7. Remove temporary diagnostics after they have served their purpose.
+8. Update this file when the verified state, architecture, active blocker, or recovery lesson materially changes.
+
+## 14. Store content and direction
+
+Primary visual direction: a premium storefront inspired by the Mytheresa shopping experience, adapted for the user's store rather than copied.
+
+Store contact content supplied previously:
 
 - Phone: `+218918873131`
 - WhatsApp: `https://wa.me/218918873131`
@@ -264,27 +404,18 @@ These were supplied for the store prototype/content:
 
 Treat these as storefront content, not login credentials.
 
-## 13. Project hygiene rules for future sessions
+## 15. Short handoff prompt
 
-Before changing infrastructure:
+Use this when opening a new Store-with-ai conversation:
 
-1. Read this file.
-2. Fetch current `package.json`, `prisma/schema.prisma`, and latest Git commit/deployment state.
-3. Identify canonical Supabase ref and Vercel project before editing variables.
-4. Never create another Supabase/Vercel project simply because a deployment gets a new random URL.
-5. Never guess env-variable values; use the current project's Supabase Connect screen.
-6. Never expose passwords/API keys in chat, GitHub, screenshots, or logs when avoidable.
-7. If the build fails, diagnose the FIRST real error after Prisma/Next warnings; warnings about Prisma 7 are not production blockers.
-8. Prefer one change → one redeploy → inspect logs, rather than changing several infrastructure variables at once.
+> Continue my Store-with-ai project using repository `almukharimabdulrahman-ship-it/Store-with-ai`. Read `PROJECT_KNOWLEDGE_BASE.md` completely first, then verify the current GitHub `main`, Vercel Production, and Supabase state before changing anything. The recovered baseline has a live storefront, working database, working Auth.js credential login, and one verified `SUPER_ADMIN`; do not repeat old recovery steps unless current evidence shows the same failure. Never create duplicate projects, rotate passwords speculatively, expose secrets, or treat Vercel `Ready` as end-to-end proof. Work autonomously on safe technical decisions, preserve unrelated changes, verify the full flow after each change, and update the knowledge base whenever the verified project state materially changes.
 
-## 14. Quick handoff prompt for a new ChatGPT conversation
+## 16. Last updated state
 
-Use this exact instruction when starting a new chat:
-
-> Continue my Store-with-ai project. Read `PROJECT_KNOWLEDGE_BASE.md` in `almukharimabdulrahman-ship-it/Store-with-ai` first, then inspect current GitHub/Vercel/Supabase state before proposing changes. The immediate goal is to get the clean Supabase database and Vercel production deployment working, then restore admin dashboard access. Do not create duplicate projects and do not ask me to make programming decisions unless a manual account/UI action is unavoidable.
-
-## 15. Last updated state
-
-Last known blocking error: Prisma `P1001` against the NEW project direct host `db.lnzpdfotfutkqsiknrbq.supabase.co:5432` during Vercel build.
-
-Next recovery action: use the NEW project's Supabase Session pooler URI for `DIRECT_URL` (and, if necessary during bootstrap recovery, both `DATABASE_URL` and `DIRECT_URL`), then Redeploy without build cache and inspect the lines after `Datasource "db"`.
+- Active infrastructure blocker: **none**.
+- Production storefront: **live**.
+- Database: **connected**.
+- Auth.js server configuration: **working**.
+- Owner login: **working**.
+- Owner role: **verified `SUPER_ADMIN`**.
+- Immediate next task: configure dedicated `AUTH_SECRET` and transactional email, then verify all admin CRUD and commerce flows.
