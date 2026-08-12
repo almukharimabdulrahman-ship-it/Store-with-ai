@@ -42,7 +42,7 @@ As of 2026-08-12, there is **no active database, deployment, or login blocker**.
 | Protected routes | Working | Logged-out requests to `/dashboard` and `/admin` return `307` to `/login` |
 | Database connectivity | Working | Live Prisma/database health was verified before the temporary diagnostic route was removed |
 | Owner account | Working | One verified user with a password and `SUPER_ADMIN` role exists; owner manually confirmed successful Dashboard login |
-| Password reset flow | Working | The reset form previously changed the owner password successfully; a later Resend delivery test sent a new time-limited link that the owner intentionally did not consume, so the current password stayed unchanged |
+| Password reset flow | Working end to end | Owner requested a reset, received the Resend email, opened the time-limited link, set a new password, signed in with it, and reached the deployed Dashboard; database verification found `0` remaining reset tokens |
 | Transactional email | Working for owner test | `RESEND_API_KEY` and `AUTH_EMAIL_FROM` are configured in Production; forgot-password email was accepted by Resend and arrived. Current `onboarding@resend.dev` sender is only for testing until a custom domain is verified |
 | Dedicated Auth.js secret | Working | A dedicated `AUTH_SECRET` was added to Vercel Production; the owner successfully logged in after redeployment on 2026-08-12 |
 
@@ -52,7 +52,7 @@ As of 2026-08-12, there is **no active database, deployment, or login blocker**.
 - Roles: `4`
 - Store settings: `1`
 - Ready verified `SUPER_ADMIN` accounts: `1`
-- Password-reset delivery test: `1` time-limited link was issued and intentionally left unused; the owner password was not changed
+- Latest password-reset test: completed end to end; new password login succeeded and remaining reset tokens: `0`
 
 Do not store the owner's login email or password in this knowledge base.
 
@@ -191,7 +191,7 @@ Registration used to fail operationally when verification email delivery failed.
 
 Forgot-password intentionally returns a generic response to prevent account enumeration. If email delivery fails, the undelivered token is removed.
 
-Resend is now configured in Vercel Production and forgot-password delivery to the Resend account owner was verified on 2026-08-12. The current sender is the Resend onboarding sender for testing. A custom owned domain must still be verified before sending authentication mail to arbitrary customer addresses. The owner intentionally did not consume the latest reset link, so the current store password remains unchanged; opening a link alone would not change it, and the token expires one hour after issuance.
+Resend is now configured in Vercel Production. The owner completed the full forgot-password flow on 2026-08-12: request, email delivery, link use, password update, login with the new password, and Dashboard access. A read-only database check afterward confirmed the account remained verified with `SUPER_ADMIN` and no reset tokens remained. The current sender is the Resend onboarding sender for testing; a custom owned domain must still be verified before sending authentication mail to arbitrary customer addresses.
 
 ## 8. Incident history and lessons learned
 
@@ -313,7 +313,7 @@ The forgot-password page still returned its generic success message, and no emai
 
 **Root cause:** `AUTH_EMAIL_FROM` in Vercel did not match a Resend-accepted sender format.
 
-**Resolution:** use the Resend onboarding sender during testing, redeploy Production, and repeat the forgot-password request. Resend accepted the message and the owner confirmed delivery.
+**Resolution:** use the Resend onboarding sender during testing, redeploy Production, and repeat the forgot-password request. Resend accepted the message, the owner received and used the reset link, signed in with the new password, and reached the Dashboard. The consumed reset token was deleted as designed.
 
 **Lesson:** HTTP `200` from the forgot-password action is intentionally not proof of email delivery. Inspect the function log and provider message. A `422` sender-validation error also proves the request reached Resend; do not rotate the API key or database password for this error. Use a verified custom domain before sending to arbitrary customer addresses.
 
@@ -356,7 +356,7 @@ Rules:
 ### Priority 0 — production hardening
 
 1. Add and verify an owned sending domain in Resend, then replace the onboarding sender with a production sender on that domain.
-2. Test registration verification with a non-owner test account after the custom domain is active. Forgot-password delivery to the owner is already verified; changing the current owner password again is not required.
+2. Test registration verification with a non-owner test account after the custom domain is active. The owner forgot-password flow is already verified end to end and should not be repeated without a real need.
 3. Add useful runtime observability/error monitoring so future failures do not require temporary diagnostic routes.
 
 ### Priority 1 — admin and commerce operations
@@ -436,6 +436,6 @@ Use this when opening a new Store-with-ai conversation:
 - Owner login: **working**.
 - Owner role: **verified `SUPER_ADMIN`**.
 - Dedicated `AUTH_SECRET`: **configured and login-verified in Production**.
-- Resend forgot-password delivery: **verified for the owner using the onboarding sender**.
+- Resend forgot-password flow: **verified end to end for the owner using the onboarding sender; new-password login and Dashboard access succeeded, with no reset token left behind**.
 - Remaining email work: **verify a custom sending domain and test registration verification for a non-owner address**.
 - Immediate next task: verify the custom email domain when available, then verify all admin CRUD and commerce flows.
