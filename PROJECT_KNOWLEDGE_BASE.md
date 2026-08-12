@@ -2,7 +2,7 @@
 
 > Purpose: persistent handoff context for future ChatGPT/Codex sessions. Read this file before proposing or making project changes.
 >
-> Last verified: **2026-08-12** (Africa/Tripoli).
+> Last verified: **2026-08-13** (Africa/Tripoli).
 >
 > Security rule: never store passwords, reset links/tokens, API keys, Auth secrets, full database URIs, or other credentials in this file, Git, screenshots, logs, or chat. Store environment-variable names and non-secret configuration facts only.
 
@@ -47,6 +47,7 @@ As of 2026-08-12, there is **no active database, deployment, or login blocker**.
 | Dedicated Auth.js secret | Working | A dedicated `AUTH_SECRET` was added to Vercel Production; the owner successfully logged in after redeployment on 2026-08-12 |
 | Arabic admin slugs | Working in code and deployed | Product, category, and brand slugs now preserve Unicode letters, handle empty fallbacks, and add numeric suffixes for duplicates; 4 focused tests, TypeScript, lint, build, and Vercel deployment passed at commit `83de65c` |
 | Admin navigation | Fixed and deployed | Owner screenshots showed that successful admin login landed on the customer Dashboard/Orders experience with no visible admin entry. Commit `f5542cf` now redirects admin roles from `/dashboard` to `/admin` and shows an admin link in the account page and storefront header; Vercel deployment succeeded |
+| Store identity and category creation | Working and production-verified | Store profile is `Chérie Boutique`; a self-hosted luxury wordmark is deployed at commit `6244bbc`. The owner created Arabic root category `النساء` and child category `الملابس` through `/admin/categories`; Supabase confirmed both Unicode slugs, active status, ordering, and the correct parent relation |
 
 ### Database summary at last verification
 
@@ -54,7 +55,7 @@ As of 2026-08-12, there is **no active database, deployment, or login blocker**.
 - Roles: `4`
 - Store settings: `1`
 - Products / variants / inventory rows: `0 / 0 / 0`
-- Categories / brands: `0 / 0`
+- Categories / brands: `2 / 0`
 - Orders / coupons / reviews: `0 / 0 / 0`
 - Ready verified `SUPER_ADMIN` accounts: `1`
 - Latest password-reset test: completed end to end; new password login succeeded and remaining reset tokens: `0`
@@ -366,16 +367,15 @@ Rules:
 
 ### Priority 1 — admin and commerce operations
 
-The first code-level blocker found during the admin audit was fixed in commit `83de65c`: Arabic-only names previously generated an empty slug, and duplicate names collided. The remaining checks require an authenticated owner session and real representative data.
+The first code-level blocker found during the admin audit was fixed in commit `83de65c`: Arabic-only names previously generated an empty slug, and duplicate names collided. The authenticated owner subsequently created `النساء` and its child `الملابس` through the Production admin UI. Direct Supabase verification confirmed the names, Unicode slugs, active status, sort order, and parent-child relationship. Arabic category creation is therefore verified end to end.
 
 The owner then exposed a separate navigation blocker: the account was correctly `SUPER_ADMIN`, but the generic `/dashboard` and customer orders pages gave no route into store management. Commit `f5542cf` fixes that UX. A fresh signed-out Production check confirmed the app and route protection still work; the owner-session redirect needs one final visual confirmation because credentials and private browser sessions must not be shared.
 
-1. From the owner's authenticated session, create one Arabic category and confirm its persisted slug in Supabase.
-2. Test every remaining `/admin` section while authenticated as `SUPER_ADMIN`.
-3. Verify create/edit/archive product flows and inventory updates against Supabase.
-4. Verify brands, customers, orders, coupons, reviews, and settings pages.
-5. Add representative products/content only after CRUD flows are confirmed.
-6. Verify storefront cart → checkout → order creation → admin order management.
+1. Test every remaining `/admin` section while authenticated as `SUPER_ADMIN`.
+2. Verify create/edit/archive product flows and inventory updates against Supabase.
+3. Verify brands, customers, orders, coupons, reviews, and settings pages.
+4. Add representative products/content only after CRUD flows are confirmed.
+5. Verify storefront cart → checkout → order creation → admin order management.
 
 ### Priority 2 — product quality
 
@@ -419,9 +419,11 @@ After editing:
 
 ## 14. Store content and direction
 
-Primary visual direction: a premium storefront inspired by the Mytheresa shopping experience, adapted for the user's store rather than copied.
+Primary visual direction: a premium women's-fashion storefront inspired by the Mytheresa shopping experience, adapted for the user's store rather than copied.
 
-The current live homepage still contains the recovered smart-security/electronics placeholder copy, while the supplied reference and contact identity point toward a fashion boutique. This is a commercial identity decision, not an infrastructure issue. Confirm the final public store name and niche before purchasing a domain or rewriting the storefront; do not buy a domain based on the temporary `Store with AI` name.
+The final public store name is `Chérie Boutique`. Keep this plain canonical text in stored settings, metadata, search, and accessibility surfaces; do not store Mathematical Alphanumeric Unicode decoration. Commit `6244bbc` deploys a self-hosted Great Vibes wordmark for visual display in the storefront, auth pages, and admin shell while preserving the canonical text. It also trims store/category/brand form inputs server-side. Production browser verification confirmed the wordmark font loaded, the document title is `Chérie Boutique`, the page contains content, and no Next.js error overlay appeared.
+
+The live homepage hero and footer description still contain the recovered smart-security/electronics placeholder copy. Replace that content with the confirmed women's-fashion identity before purchasing and attaching the final domain.
 
 Store contact content supplied previously:
 
@@ -449,8 +451,9 @@ Use this when opening a new Store-with-ai conversation:
 - Owner role: **verified `SUPER_ADMIN`**.
 - Dedicated `AUTH_SECRET`: **configured and login-verified in Production**.
 - Resend forgot-password flow: **verified end to end for the owner using the onboarding sender; new-password login and Dashboard access succeeded, with no reset token left behind**.
-- Arabic product/category/brand slugs: **fixed, tested, and deployed at commit `83de65c`; authenticated creation still needs one owner-session confirmation**.
+- Arabic product/category/brand slugs: **fixed and deployed at commit `83de65c`; authenticated root and child category creation is now verified end to end in Production and Supabase**.
 - Admin access navigation: **fixed and deployed at commit `f5542cf`; `/dashboard` now redirects admin roles to `/admin`, with additional Admin links in Account and the storefront header**.
+- Store identity: **`Chérie Boutique` confirmed; self-hosted luxury wordmark and canonical metadata deployed and Production-verified at commit `6244bbc`**.
 - Remaining email work: **verify a custom sending domain and test registration verification for a non-owner address**.
-- Domain readiness: **infrastructure is ready, but the final public store name and niche must be confirmed before purchase**.
-- Immediate next task: **create one Arabic category from the authenticated admin session, verify it in Supabase, then continue product CRUD and catalog setup**.
+- Domain readiness: **name and women's-fashion niche are confirmed; replace the remaining electronics placeholder content and complete core commerce-flow tests before purchase/attachment**.
+- Immediate next task: **create and verify the first representative product, its variant, image, price, and inventory through the authenticated admin flow**.
