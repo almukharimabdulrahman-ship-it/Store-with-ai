@@ -35,6 +35,32 @@ const safeDatabaseConfiguration = () => {
   }
 };
 
+const safeManagedConnection = (name: string) => {
+  const value = process.env[name];
+  if (!value) return { present: false };
+
+  try {
+    const url = new URL(value);
+    return {
+      present: true,
+      parseable: true,
+      hostname: url.hostname,
+      port: url.port || "default",
+      username: url.username,
+      database: url.pathname.replace(/^\//, ""),
+    };
+  } catch {
+    return { present: true, parseable: false };
+  }
+};
+
+const safeManagedDatabaseConfiguration = () => ({
+  postgresHost: process.env.POSTGRES_HOST ?? "unset",
+  postgresPrismaUrl: safeManagedConnection("POSTGRES_PRISMA_URL"),
+  postgresUrl: safeManagedConnection("POSTGRES_URL"),
+  postgresNonPoolingUrl: safeManagedConnection("POSTGRES_URL_NON_POOLING"),
+});
+
 const safeErrorSummary = (error: unknown) => {
   let message = error instanceof Error ? error.message : String(error);
   const value = process.env.DATABASE_URL;
@@ -137,6 +163,7 @@ export async function GET() {
         durationMs: Date.now() - startedAt,
         safeError: safeErrorSummary(error),
         configuration: safeDatabaseConfiguration(),
+        managedConfiguration: safeManagedDatabaseConfiguration(),
       },
       { status: 503, headers: { "Cache-Control": "no-store" } },
     );
