@@ -7,11 +7,11 @@ export async function getStoreProfile() {
   const setting = await prisma.storeSetting.findUnique({ where: { key: "store.profile" } }).catch(() => null);
   const value = setting?.value && typeof setting.value === "object" ? setting.value as Record<string, unknown> : {};
   return {
-    name: typeof value.name === "string" ? value.name : "Store with AI",
-    currency: typeof value.currency === "string" ? value.currency : "LYD",
-    country: typeof value.country === "string" ? value.country : "Libya",
-    supportEmail: typeof value.supportEmail === "string" ? value.supportEmail : "",
-    supportPhone: typeof value.supportPhone === "string" ? value.supportPhone : "",
+    name: typeof value.name === "string" && value.name.trim() ? value.name.trim() : "Store with AI",
+    currency: typeof value.currency === "string" && value.currency.trim() ? value.currency.trim() : "LYD",
+    country: typeof value.country === "string" && value.country.trim() ? value.country.trim() : "Libya",
+    supportEmail: typeof value.supportEmail === "string" ? value.supportEmail.trim() : "",
+    supportPhone: typeof value.supportPhone === "string" ? value.supportPhone.trim() : "",
   };
 }
 

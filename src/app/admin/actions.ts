@@ -49,7 +49,7 @@ export async function updateOrderStatus(id: string, formData: FormData) {
 
 export async function createCategory(formData: FormData) {
   await requireAdmin();
-  const data = z.object({ name: z.string().min(2), parentId: z.string().optional(), sortOrder: z.coerce.number().int().default(0) }).parse(Object.fromEntries(formData));
+  const data = z.object({ name: z.string().trim().min(2), parentId: z.string().optional(), sortOrder: z.coerce.number().int().default(0) }).parse(Object.fromEntries(formData));
   const slug = await createUniqueSlug(
     data.name,
     async (candidate) => Boolean(await prisma.category.findUnique({ where: { slug: candidate }, select: { id: true } })),
@@ -67,7 +67,7 @@ export async function toggleCategory(id: string, active: boolean) {
 
 export async function createBrand(formData: FormData) {
   await requireAdmin();
-  const data = z.object({ name: z.string().min(2), logoUrl: z.string().url().optional().or(z.literal("")) }).parse(Object.fromEntries(formData));
+  const data = z.object({ name: z.string().trim().min(2), logoUrl: z.string().url().optional().or(z.literal("")) }).parse(Object.fromEntries(formData));
   const slug = await createUniqueSlug(
     data.name,
     async (candidate) => Boolean(await prisma.brand.findUnique({ where: { slug: candidate }, select: { id: true } })),
@@ -104,7 +104,7 @@ export async function toggleCoupon(id: string, active: boolean) {
 
 export async function saveStoreSettings(formData: FormData) {
   await requireAdmin();
-  const data = z.object({ name: z.string().min(2), currency: z.string().min(3).max(3), country: z.string().min(2), supportEmail: z.string().email().optional().or(z.literal("")), supportPhone: z.string().optional() }).parse(Object.fromEntries(formData));
+  const data = z.object({ name: z.string().trim().min(2), currency: z.string().trim().length(3).transform(value => value.toUpperCase()), country: z.string().trim().min(2), supportEmail: z.string().trim().email().optional().or(z.literal("")), supportPhone: z.string().trim().optional() }).parse(Object.fromEntries(formData));
   await prisma.storeSetting.upsert({ where: { key: "store.profile" }, update: { value: data }, create: { key: "store.profile", value: data } });
   revalidatePath("/admin/settings");
 }

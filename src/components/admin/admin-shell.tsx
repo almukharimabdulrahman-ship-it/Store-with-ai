@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { logoutAction } from "@/app/(auth)/actions";
+import { StoreWordmark } from "@/components/storefront/store-wordmark";
 
 const items = [
   ["Overview", "/admin"], ["Products", "/admin/products"], ["Categories", "/admin/categories"],
@@ -7,10 +8,10 @@ const items = [
   ["Inventory", "/admin/inventory"], ["Reviews", "/admin/reviews"], ["Coupons", "/admin/coupons"], ["Settings", "/admin/settings"],
 ] as const;
 
-export function AdminShell({ user, children }: { user: { name?: string | null; email?: string | null; role?: string | null }; children: React.ReactNode }) {
+export function AdminShell({ storeName, user, children }: { storeName: string; user: { name?: string | null; email?: string | null; role?: string | null }; children: React.ReactNode }) {
   return <div className="min-h-screen bg-neutral-100 text-neutral-950">
     <aside className="fixed inset-y-0 left-0 hidden w-64 border-r bg-white p-5 lg:block">
-      <Link href="/admin" className="text-xl font-bold">Store with AI</Link>
+      <Link href="/admin" aria-label={`${storeName} admin`}><StoreWordmark name={storeName} className="text-3xl leading-none" /></Link>
       <nav className="mt-8 space-y-1">{items.map(([label, href]) => <Link key={href} href={href} className="block rounded-lg px-3 py-2 text-sm hover:bg-neutral-100">{label}</Link>)}</nav>
     </aside>
     <div className="lg:pl-64">

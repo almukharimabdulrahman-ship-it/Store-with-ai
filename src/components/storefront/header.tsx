@@ -3,6 +3,7 @@ import { auth } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { isAdmin } from "@/lib/auth/authorization";
 import { getStoreProfile } from "@/lib/storefront";
+import { StoreWordmark } from "@/components/storefront/store-wordmark";
 
 export async function StorefrontHeader() {
   const [session, profile, categories] = await Promise.all([
@@ -16,7 +17,9 @@ export async function StorefrontHeader() {
   }
   return <header className="sticky top-0 z-40 border-b bg-white/95 backdrop-blur">
     <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-4">
-      <Link href="/" className="text-xl font-black tracking-tight">{profile.name}</Link>
+      <Link href="/" className="shrink-0" aria-label={`${profile.name} home`}>
+        <StoreWordmark name={profile.name} className="text-[1.85rem] leading-none" />
+      </Link>
       <form action="/search" className="hidden flex-1 md:flex"><input name="q" placeholder="Search products" className="w-full rounded-l-xl border border-r-0 px-4 py-2 outline-none"/><button className="rounded-r-xl bg-black px-4 text-white">Search</button></form>
       <nav className="ml-auto flex items-center gap-4 text-sm">
         {isAdmin(session?.user?.role) ? <Link href="/admin" className="font-semibold">Admin</Link> : null}

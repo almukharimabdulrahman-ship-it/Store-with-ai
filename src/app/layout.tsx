@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Store with AI",
-  description: "Modern e-commerce store powered by AI",
+  title: "Chérie Boutique",
+  description: "Chérie Boutique — أزياء نسائية مختارة بعناية.",
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
