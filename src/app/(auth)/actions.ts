@@ -14,15 +14,29 @@ const expiresIn = (hours: number) => new Date(Date.now() + hours * 60 * 60 * 100
 export async function registerAction(_: ActionState, formData: FormData): Promise<ActionState> {
   const parsed = registerSchema.safeParse(Object.fromEntries(formData));
   if (!parsed.success) return { error: parsed.error.issues[0].message };
-  const existing = await prisma.user.findFirst({ where: { email: { equals: parsed.data.email, mode: "insensitive" } } });
-  if (existing) return { error: "An account already exists for this email" };
-  const role = await prisma.role.findUnique({ where: { code: "CUSTOMER" } });
-  if (!role) return { error: "Registration is temporarily unavailable" };
-  const user = await prisma.user.create({ data: { name: parsed.data.name, email: parsed.data.email, passwordHash: await hash(parsed.data.password, 12), roleId: role.id } });
-  const { token, tokenHash } = createToken();
-  await prisma.emailVerificationToken.create({ data: { userId: user.id, tokenHash, expiresAt: expiresIn(24) } });
-  await sendVerificationEmail(user.email, token);
-  return { success: "Account created. Check your email to verify it before signing in." };
+  try {
+    const existing = await prisma.user.findFirst({ where: { email: { equals: parsed.data.email, mode: "insensitive" } } });
+    if (existing) return { error: "An account already exists for this email" };
+    const role = await prisma.role.findUnique({ where: { code: "CUSTOMER" } });
+    if (!role) return { error: "Registration is temporarily unavailable" };
+    const user = await prisma.user.create({ data: { name: parsed.data.name, email: parsed.data.email, passwordHash: await hash(parsed.data.password, 12), roleId: role.id } });
+    const { token, tokenHash } = createToken();
+    await prisma.emailVerificationToken.create({ data: { userId: user.id, tokenHash, expiresAt: expiresIn(24) } });
+
+    try {
+      await sendVerificationEmail(user.email, token);
+    } catch {
+      await prisma.user.delete({ where: { id: user.id } }).catch(() => undefined);
+      return { error: "We could not send the verification email. Please try again later." };
+    }
+
+    return { success: "Account created. Check your email to verify it before signing in." };
+  } catch (error) {
+    console.error("[auth] Registration failed", {
+      code: error && typeof error === "object" && "code" in error ? String(error.code) : "unknown",
+    });
+    return { error: "Registration is temporarily unavailable. Please try again." };
+  }
 }
 
 export async function loginAction(_: ActionState, formData: FormData): Promise<ActionState> {
