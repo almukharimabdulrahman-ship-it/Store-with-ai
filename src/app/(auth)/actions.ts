@@ -26,8 +26,13 @@ export async function registerAction(_: ActionState, formData: FormData): Promis
     try {
       await sendVerificationEmail(user.email, token);
     } catch {
-      await prisma.user.delete({ where: { id: user.id } }).catch(() => undefined);
-      return { error: "We could not send the verification email. Please try again later." };
+      console.error("[auth] Verification email delivery failed after account creation", {
+        userId: user.id,
+      });
+      return {
+        success:
+          "Account created. Email delivery is temporarily unavailable; ask the store administrator to verify your account.",
+      };
     }
 
     return { success: "Account created. Check your email to verify it before signing in." };
