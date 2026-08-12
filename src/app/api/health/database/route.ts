@@ -4,9 +4,11 @@ export const dynamic = "force-dynamic";
 
 const diagnosticCode = (error: unknown) => {
   const prismaCode =
-    error && typeof error === "object" && "code" in error
-      ? String(error.code)
-      : "UNKNOWN";
+    error && typeof error === "object" && "errorCode" in error
+      ? String(error.errorCode)
+      : error && typeof error === "object" && "code" in error
+        ? String(error.code)
+        : "UNKNOWN";
 
   switch (prismaCode) {
     case "P1000":
