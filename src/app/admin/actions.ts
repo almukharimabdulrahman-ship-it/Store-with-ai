@@ -5,8 +5,8 @@ import { redirect } from "next/navigation";
 import { z } from "zod";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/auth/authorization";
+import { createUniqueSlug } from "@/lib/slug";
 
-const slugify = (value: string) => value.trim().toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 const productSchema = z.object({
   name: z.string().min(2), description: z.string().optional(), brandId: z.string().optional(), categoryId: z.string().optional(),
   sku: z.string().min(2), price: z.coerce.number().nonnegative(), salePrice: z.coerce.number().nonnegative().optional(), stock: z.coerce.number().int().nonnegative().default(0),
@@ -17,7 +17,12 @@ export async function createProduct(formData: FormData) {
   await requireAdmin();
   const data = productSchema.parse(Object.fromEntries(formData));
   const product = await prisma.$transaction(async (tx) => {
-    const created = await tx.product.create({ data: { name:data.name, slug:slugify(data.name), description:data.description||null, brandId:data.brandId||null, status:data.status, featured:Boolean(data.featured) } });
+    const slug = await createUniqueSlug(
+      data.name,
+      async (candidate) => Boolean(await tx.product.findUnique({ where: { slug: candidate }, select: { id: true } })),
+      "product",
+    );
+    const created = await tx.product.create({ data: { name:data.name, slug, description:data.description||null, brandId:data.brandId||null, status:data.status, featured:Boolean(data.featured) } });
     if (data.categoryId) await tx.productCategory.create({ data: { productId:created.id, categoryId:data.categoryId } });
     if (data.imageUrl) await tx.productImage.create({ data: { productId:created.id, url:data.imageUrl, alt:data.name } });
     const variant = await tx.productVariant.create({ data: { productId:created.id, sku:data.sku, name:[data.color,data.size].filter(Boolean).join(" / ")||"Default", color:data.color||null, size:data.size||null, price:data.price, salePrice:data.salePrice||null } });
@@ -45,7 +50,12 @@ export async function updateOrderStatus(id: string, formData: FormData) {
 export async function createCategory(formData: FormData) {
   await requireAdmin();
   const data = z.object({ name: z.string().min(2), parentId: z.string().optional(), sortOrder: z.coerce.number().int().default(0) }).parse(Object.fromEntries(formData));
-  await prisma.category.create({ data: { name: data.name, slug: slugify(data.name), parentId: data.parentId || null, sortOrder: data.sortOrder } });
+  const slug = await createUniqueSlug(
+    data.name,
+    async (candidate) => Boolean(await prisma.category.findUnique({ where: { slug: candidate }, select: { id: true } })),
+    "category",
+  );
+  await prisma.category.create({ data: { name: data.name, slug, parentId: data.parentId || null, sortOrder: data.sortOrder } });
   revalidatePath("/admin/categories");
 }
 
@@ -58,7 +68,12 @@ export async function toggleCategory(id: string, active: boolean) {
 export async function createBrand(formData: FormData) {
   await requireAdmin();
   const data = z.object({ name: z.string().min(2), logoUrl: z.string().url().optional().or(z.literal("")) }).parse(Object.fromEntries(formData));
-  await prisma.brand.create({ data: { name: data.name, slug: slugify(data.name), logoUrl: data.logoUrl || null } });
+  const slug = await createUniqueSlug(
+    data.name,
+    async (candidate) => Boolean(await prisma.brand.findUnique({ where: { slug: candidate }, select: { id: true } })),
+    "brand",
+  );
+  await prisma.brand.create({ data: { name: data.name, slug, logoUrl: data.logoUrl || null } });
   revalidatePath("/admin/brands");
 }
 
