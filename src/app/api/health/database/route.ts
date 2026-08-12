@@ -35,6 +35,30 @@ const safeDatabaseConfiguration = () => {
   }
 };
 
+const safeErrorSummary = (error: unknown) => {
+  let message = error instanceof Error ? error.message : String(error);
+  const value = process.env.DATABASE_URL;
+
+  if (value) {
+    message = message.replaceAll(value, "[REDACTED_DATABASE_URL]");
+    try {
+      const url = new URL(value);
+      const passwordVariants = [url.password, decodeURIComponent(url.password)]
+        .filter((item, index, items) => item.length > 0 && items.indexOf(item) === index);
+      for (const password of passwordVariants) {
+        message = message.replaceAll(password, "[REDACTED_PASSWORD]");
+      }
+    } catch {
+      // URL parsing is already reported by safeDatabaseConfiguration().
+    }
+  }
+
+  return message
+    .replace(/postgres(?:ql)?:\/\/[^\s"'`]+/gi, "[REDACTED_DATABASE_URL]")
+    .replace(/(password\s*[=:]\s*)\S+/gi, "$1[REDACTED_PASSWORD]")
+    .slice(0, 1200);
+};
+
 const diagnosticCode = (error: unknown) => {
   const record = error && typeof error === "object"
     ? error as { code?: unknown; errorCode?: unknown }
@@ -111,6 +135,7 @@ export async function GET() {
         ok: false,
         diagnostic,
         durationMs: Date.now() - startedAt,
+        safeError: safeErrorSummary(error),
         configuration: safeDatabaseConfiguration(),
       },
       { status: 503, headers: { "Cache-Control": "no-store" } },
