@@ -44,7 +44,7 @@ As of 2026-08-12, there is **no active database, deployment, or login blocker**.
 | Owner account | Working | One verified user with a password and `SUPER_ADMIN` role exists; owner manually confirmed successful Dashboard login |
 | Password reset cleanup | Working | No active password-reset token remained after the successful reset |
 | Transactional email | Not configured/verified | Registration can survive email failure, but Resend delivery still needs proper production setup and testing |
-| Dedicated Auth.js secret | Recommended improvement | Runtime currently works with a secure server-only fallback; a dedicated `AUTH_SECRET` should still be added in Vercel |
+| Dedicated Auth.js secret | Working | A dedicated `AUTH_SECRET` was added to Vercel Production; the owner successfully logged in after redeployment on 2026-08-12 |
 
 ### Database summary at last verification
 
@@ -183,7 +183,7 @@ There was a problem with the server configuration.
 3. app-scoped server-only fallback derived from `DATABASE_URL`
 4. app-scoped server-only fallback derived from `DIRECT_URL`
 
-This restored production immediately without committing a secret. A dedicated random `AUTH_SECRET` in Vercel Production remains the preferred long-term configuration. Adding it automatically takes precedence. Changing the fallback source invalidates existing JWT sessions, so database-password rotation can require users to sign in again until a dedicated Auth secret is configured.
+This restored production immediately without committing a secret. A dedicated random `AUTH_SECRET` was subsequently added to Vercel Production on 2026-08-12. After redeployment, the owner successfully logged in and reached the Dashboard, verifying the new secret in the live authentication flow. It now takes precedence over the fallbacks; the fallbacks remain server-only recovery resilience. Existing JWT sessions may be invalidated when the active secret changes, which is expected.
 
 ### Registration and email failure behavior
 
@@ -317,7 +317,7 @@ Required or relevant names only:
 
 - `DATABASE_URL`
 - `DIRECT_URL`
-- `AUTH_SECRET` — recommended dedicated production secret; not yet verified as provisioned
+- `AUTH_SECRET` — dedicated Production secret; provisioned and login-verified on 2026-08-12
 - `NEXTAUTH_SECRET` — legacy fallback name
 - `AUTH_URL`
 - `NEXTAUTH_URL`
@@ -337,10 +337,9 @@ Rules:
 
 ### Priority 0 — production hardening
 
-1. Add a dedicated random `AUTH_SECRET` to Vercel Production and redeploy.
-2. Configure and verify Resend: API key, authorized sender/domain, and `AUTH_EMAIL_FROM`.
-3. Test registration verification and forgot-password delivery end to end with a non-owner test account.
-4. Add useful runtime observability/error monitoring so future failures do not require temporary diagnostic routes.
+1. Configure and verify Resend: API key, authorized sender/domain, and `AUTH_EMAIL_FROM`.
+2. Test registration verification and forgot-password delivery end to end with a non-owner test account.
+3. Add useful runtime observability/error monitoring so future failures do not require temporary diagnostic routes.
 
 ### Priority 1 — admin and commerce operations
 
@@ -418,4 +417,5 @@ Use this when opening a new Store-with-ai conversation:
 - Auth.js server configuration: **working**.
 - Owner login: **working**.
 - Owner role: **verified `SUPER_ADMIN`**.
-- Immediate next task: configure dedicated `AUTH_SECRET` and transactional email, then verify all admin CRUD and commerce flows.
+- Dedicated `AUTH_SECRET`: **configured and login-verified in Production**.
+- Immediate next task: configure and verify transactional email through Resend, then verify all admin CRUD and commerce flows.
