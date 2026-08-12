@@ -46,6 +46,7 @@ As of 2026-08-12, there is **no active database, deployment, or login blocker**.
 | Transactional email | Working for owner test | `RESEND_API_KEY` and `AUTH_EMAIL_FROM` are configured in Production; forgot-password email was accepted by Resend and arrived. Current `onboarding@resend.dev` sender is only for testing until a custom domain is verified |
 | Dedicated Auth.js secret | Working | A dedicated `AUTH_SECRET` was added to Vercel Production; the owner successfully logged in after redeployment on 2026-08-12 |
 | Arabic admin slugs | Working in code and deployed | Product, category, and brand slugs now preserve Unicode letters, handle empty fallbacks, and add numeric suffixes for duplicates; 4 focused tests, TypeScript, lint, build, and Vercel deployment passed at commit `83de65c` |
+| Admin navigation | Fixed and deployed | Owner screenshots showed that successful admin login landed on the customer Dashboard/Orders experience with no visible admin entry. Commit `f5542cf` now redirects admin roles from `/dashboard` to `/admin` and shows an admin link in the account page and storefront header; Vercel deployment succeeded |
 
 ### Database summary at last verification
 
@@ -367,6 +368,8 @@ Rules:
 
 The first code-level blocker found during the admin audit was fixed in commit `83de65c`: Arabic-only names previously generated an empty slug, and duplicate names collided. The remaining checks require an authenticated owner session and real representative data.
 
+The owner then exposed a separate navigation blocker: the account was correctly `SUPER_ADMIN`, but the generic `/dashboard` and customer orders pages gave no route into store management. Commit `f5542cf` fixes that UX. A fresh signed-out Production check confirmed the app and route protection still work; the owner-session redirect needs one final visual confirmation because credentials and private browser sessions must not be shared.
+
 1. From the owner's authenticated session, create one Arabic category and confirm its persisted slug in Supabase.
 2. Test every remaining `/admin` section while authenticated as `SUPER_ADMIN`.
 3. Verify create/edit/archive product flows and inventory updates against Supabase.
@@ -447,6 +450,7 @@ Use this when opening a new Store-with-ai conversation:
 - Dedicated `AUTH_SECRET`: **configured and login-verified in Production**.
 - Resend forgot-password flow: **verified end to end for the owner using the onboarding sender; new-password login and Dashboard access succeeded, with no reset token left behind**.
 - Arabic product/category/brand slugs: **fixed, tested, and deployed at commit `83de65c`; authenticated creation still needs one owner-session confirmation**.
+- Admin access navigation: **fixed and deployed at commit `f5542cf`; `/dashboard` now redirects admin roles to `/admin`, with additional Admin links in Account and the storefront header**.
 - Remaining email work: **verify a custom sending domain and test registration verification for a non-owner address**.
 - Domain readiness: **infrastructure is ready, but the final public store name and niche must be confirmed before purchase**.
 - Immediate next task: **create one Arabic category from the authenticated admin session, verify it in Supabase, then continue product CRUD and catalog setup**.
