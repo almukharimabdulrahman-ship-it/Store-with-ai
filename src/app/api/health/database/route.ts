@@ -14,6 +14,7 @@ const safeDatabaseConfiguration = () => {
       protocolOk: ["postgres:", "postgresql:"].includes(url.protocol),
       usernameOk: url.username === "postgres.lnzpdfotfutkqsiknrbq",
       poolerHost: url.hostname.endsWith(".pooler.supabase.com"),
+      regionHostOk: url.hostname === "aws-0-eu-west-1.pooler.supabase.com",
       port: url.port || "default",
       databaseOk: url.pathname === "/postgres",
       pgbouncer: url.searchParams.get("pgbouncer") === "true",
@@ -32,19 +33,20 @@ const diagnosticCode = (error: unknown) => {
   const prismaCode = [record?.errorCode, record?.code]
     .find((value): value is string => typeof value === "string" && value.length > 0);
   const message = error instanceof Error ? error.message : "";
+  const normalizedMessage = message.toLowerCase();
 
   if (!prismaCode) {
-    if (message.includes("Environment variable not found")) return "DB_ENV_MISSING";
-    if (message.includes("Authentication failed") || message.includes("password authentication failed")) {
+    if (normalizedMessage.includes("environment variable not found")) return "DB_ENV_MISSING";
+    if (normalizedMessage.includes("authentication failed")) {
       return "DB_AUTH_REJECTED";
     }
-    if (message.includes("Tenant or user not found")) return "DB_POOLER_TENANT_INVALID";
-    if (message.includes("Can't reach database server")) return "DB_HOST_UNREACHABLE";
-    if (message.includes("Timed out fetching a new connection")) return "DB_POOL_TIMEOUT";
-    if (message.includes("prepared statement") && message.includes("already exists")) {
+    if (normalizedMessage.includes("tenant or user not found")) return "DB_POOLER_TENANT_INVALID";
+    if (normalizedMessage.includes("can't reach database server")) return "DB_HOST_UNREACHABLE";
+    if (normalizedMessage.includes("timed out fetching a new connection")) return "DB_POOL_TIMEOUT";
+    if (normalizedMessage.includes("prepared statement") && normalizedMessage.includes("already exists")) {
       return "DB_POOLER_MODE_INVALID";
     }
-    if (message.includes("invalid connection string") || message.includes("invalid port")) {
+    if (normalizedMessage.includes("invalid connection string") || normalizedMessage.includes("invalid port")) {
       return "DB_URL_INVALID";
     }
     return error instanceof Error
