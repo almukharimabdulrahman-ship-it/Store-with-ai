@@ -2,7 +2,7 @@
 
 > Purpose: persistent handoff context for future ChatGPT/Codex sessions. Read this file before proposing or making project changes.
 >
-> Last verified: **2026-08-13** (Africa/Tripoli).
+> Last verified: **2026-08-19** (Africa/Tripoli).
 >
 > Security rule: never store passwords, reset links/tokens, API keys, Auth secrets, full database URIs, or other credentials in this file, Git, screenshots, logs, or chat. Store environment-variable names and non-secret configuration facts only.
 
@@ -28,7 +28,7 @@ Generated Vercel deployment URLs are immutable deployment aliases. They do **not
 
 ## 3. Current verified status
 
-As of 2026-08-12, there is **no active database, deployment, or login blocker**.
+As of 2026-08-19, there is **no active database, deployment, or login blocker**.
 
 | Area | Status | Evidence |
 |---|---|---|
@@ -41,13 +41,14 @@ As of 2026-08-12, there is **no active database, deployment, or login blocker**.
 | Auth.js session endpoint | Working | `/api/auth/session` returned HTTP `200` |
 | Protected routes | Working | A fresh logged-out browser visit to `/admin` redirected to `/login` with the correct admin `callbackUrl` |
 | Database connectivity | Working | Live Prisma/database health was verified before the temporary diagnostic route was removed |
-| Owner account | Working | One verified user with a password and `SUPER_ADMIN` role exists; owner manually confirmed successful Dashboard login |
+| Owner account | Working | One verified user with a password and `SUPER_ADMIN` role exists; the owner reset the store password after the 2026-08-19 RLS containment and manually confirmed successful login with the new password |
 | Password reset flow | Working end to end | Owner requested a reset, received the Resend email, opened the time-limited link, set a new password, signed in with it, and reached the deployed Dashboard; database verification found `0` remaining reset tokens |
 | Transactional email | Working for owner test | `RESEND_API_KEY` and `AUTH_EMAIL_FROM` are configured in Production; forgot-password email was accepted by Resend and arrived. Current `onboarding@resend.dev` sender is only for testing until a custom domain is verified |
 | Dedicated Auth.js secret | Working | A dedicated `AUTH_SECRET` was added to Vercel Production; the owner successfully logged in after redeployment on 2026-08-12 |
 | Arabic admin slugs | Working in code and deployed | Product, category, and brand slugs now preserve Unicode letters, handle empty fallbacks, and add numeric suffixes for duplicates; 4 focused tests, TypeScript, lint, build, and Vercel deployment passed at commit `83de65c` |
 | Admin navigation | Fixed and deployed | Owner screenshots showed that successful admin login landed on the customer Dashboard/Orders experience with no visible admin entry. Commit `f5542cf` now redirects admin roles from `/dashboard` to `/admin` and shows an admin link in the account page and storefront header; Vercel deployment succeeded |
 | Store identity and category creation | Working and production-verified | Store profile is `Chérie Boutique`; a self-hosted luxury wordmark is deployed at commit `6244bbc`. The owner created Arabic root category `النساء` and child category `الملابس` through `/admin/categories`; Supabase confirmed both Unicode slugs, active status, ordering, and the correct parent relation |
+| Supabase Data API containment | Working and database-verified | RLS is enabled on all `26/26` public tables with no public policies. Anonymous read and rolled-back delete checks returned zero rows, and Security Advisor no longer reports `rls_disabled_in_public` errors |
 
 ### Database summary at last verification
 
@@ -58,6 +59,8 @@ As of 2026-08-12, there is **no active database, deployment, or login blocker**.
 - Categories / brands: `2 / 0`
 - Orders / coupons / reviews: `0 / 0 / 0`
 - Ready verified `SUPER_ADMIN` accounts: `1`
+- Public tables with RLS enabled: `26 / 26`
+- Public RLS policies: `0` (intentional because the application uses server-side Prisma, not the Supabase Data API)
 - Latest password-reset test: completed end to end; new password login succeeded and remaining reset tokens: `0`
 
 Do not store the owner's login email or password in this knowledge base.
@@ -323,6 +326,16 @@ The forgot-password page still returned its generic success message, and no emai
 
 **Lesson:** HTTP `200` from the forgot-password action is intentionally not proof of email delivery. Inspect the function log and provider message. A `422` sender-validation error also proves the request reached Resend; do not rotate the API key or database password for this error. Use a verified custom domain before sending to arbitrary customer addresses.
 
+### Incident J — public tables had RLS disabled
+
+**Symptom:** Supabase Security Advisor reported `rls_disabled_in_public` for all 26 application tables, including `User`, `Session`, `Order`, and `Payment`.
+
+**Root cause:** the schema inherited legacy Supabase default grants for `anon`, `authenticated`, and `service_role`, while every application table in the exposed `public` schema had RLS disabled. The application itself uses server-side Prisma over a direct PostgreSQL connection and did not require Data API access.
+
+**Resolution:** enable RLS on all 26 existing public tables without adding public policies. Revoke default CRUD table grants and default sequence access for future objects created by `postgres`. A post-change anonymous read returned zero rows for sensitive and commerce tables; a rolled-back anonymous delete affected zero rows; row counts stayed unchanged; Security Advisor's 26 external errors disappeared. The owner then reset the store-account password and confirmed successful login with the new password.
+
+**Lesson:** repository visibility and database row security are separate controls. A public GitHub repository is acceptable only when it contains no credentials, but every new migration must still review RLS and grants. Never commit `.env` files, database URLs, service-role keys, or other secrets.
+
 ## 9. Traceable recovery commits
 
 Important application commits from the successful recovery:
@@ -414,8 +427,9 @@ After editing:
 4. Verify the complete data flow: UI → action/API → database/external service → response.
 5. For authentication work, test providers, CSRF, session, login, route protection, role authorization, and logout.
 6. For database work, confirm the active project ref and query the resulting state.
-7. Remove temporary diagnostics after they have served their purpose.
-8. Update this file when the verified state, architecture, active blocker, or recovery lesson materially changes.
+7. For every new table in an exposed schema, explicitly review both grants and RLS in the same migration.
+8. Remove temporary diagnostics after they have served their purpose.
+9. Update this file when the verified state, architecture, active blocker, or recovery lesson materially changes.
 
 ## 14. Store content and direction
 
@@ -446,6 +460,8 @@ Use this when opening a new Store-with-ai conversation:
 - Active infrastructure blocker: **none**.
 - Production storefront: **live**.
 - Database: **connected**.
+- Supabase Data API containment: **RLS enabled on `26/26` public tables; anonymous reads and writes blocked; future default API grants revoked for objects created by `postgres`**.
+- Post-containment owner credential: **store password reset and successful login with the new password manually confirmed by the owner on 2026-08-19**.
 - Auth.js server configuration: **working**.
 - Owner login: **working**.
 - Owner role: **verified `SUPER_ADMIN`**.
