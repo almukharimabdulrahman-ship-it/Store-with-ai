@@ -1,3 +1,4 @@
+// Preview-only homepage for owner visual review; do not merge without approval.
 import fs from "node:fs";
 import path from "node:path";
 
