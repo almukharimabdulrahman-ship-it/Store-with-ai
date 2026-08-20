@@ -25,7 +25,7 @@ function Icon({ type }: { type: "menu" | "search" | "account" | "heart" }) {
   );
 }
 
-function SoonImage({ src, alt, blur = "blur-[9px]" }: { src: string; alt: string; blur?: string }) {
+function SoonImage({ src, alt }: { src: string; alt: string }) {
   return (
     <div className="relative aspect-[4/5] overflow-hidden bg-[#f4f1ec]">
       <Image
@@ -33,11 +33,9 @@ function SoonImage({ src, alt, blur = "blur-[9px]" }: { src: string; alt: string
         alt={alt}
         fill
         sizes="(max-width: 767px) 50vw, 25vw"
-        className={`object-cover scale-[1.04] ${blur}`}
-        quality={78}
+        className="object-cover"
+        quality={82}
       />
-      <div className="absolute inset-0 bg-black/[0.04]" />
-      <span className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 border border-white/80 bg-black/10 px-3 py-1.5 text-[11px] font-light tracking-[.08em] text-white backdrop-blur-[1px] md:px-4 md:py-2 md:text-[12px]">قريبًا</span>
     </div>
   );
 }
@@ -118,16 +116,20 @@ export default function ShowcasePage() {
           </div>
           <div className="grid gap-3 md:grid-cols-5 md:gap-4">
             {world.map((item) => (
-              <article key={item.label} className="relative aspect-[4/5] overflow-hidden bg-[#f4f1ec]">
-                <Image src={item.image} alt={`صورة تحريرية مولدة لفئة ${item.label}`} fill sizes="(max-width: 767px) 100vw, 20vw" className="object-cover scale-[1.025] blur-[3px]" quality={80} />
-                <div className="absolute inset-0 bg-black/20" />
-                <div className="absolute inset-x-0 bottom-0 p-5 text-white md:p-6">
-                  <p className="font-serif text-[26px] md:text-[28px]">{item.label}</p>
-                  <div className="mt-2 flex items-center justify-between">
-                    <span className="text-[10px] tracking-[.14em] text-white/80">COMING SOON</span>
-                    <span className="border border-white/75 px-2.5 py-1 text-[10px]">قريبًا</span>
-                  </div>
-                </div>
+              <article
+                key={item.label}
+                aria-label={`${item.label} — قريبًا`}
+                className="relative aspect-[4/3] overflow-hidden bg-[#f4f1ec]"
+              >
+                <Image
+                  src={item.image}
+                  alt={`صورة تحريرية مولدة لفئة ${item.label}`}
+                  fill
+                  sizes="(max-width: 767px) 100vw, 20vw"
+                  className="object-cover"
+                  quality={82}
+                />
+                <span className="sr-only">{item.label} — قريبًا</span>
               </article>
             ))}
           </div>
